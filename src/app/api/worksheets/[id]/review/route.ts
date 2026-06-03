@@ -2,7 +2,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
 import { queryOpenRouter } from "@/lib/openrouter";
-// pdf-parse is required dynamically inside the handler to prevent compilation errors.
+import "pdf-parse/worker";
+import { PDFParse } from "pdf-parse";
 
 export async function POST(
   req: NextRequest,
@@ -41,10 +42,10 @@ export async function POST(
         if (!global.Path2D) global.Path2D = class {};
       }
       
-      // @ts-ignore
-      const pdf = require("pdf-parse");
-      const parsedData = await pdf(buffer);
+      const parser = new PDFParse({ data: buffer });
+      const parsedData = await parser.getText();
       extractedText = parsedData.text || "";
+      await parser.destroy();
     } catch (pdfErr) {
       console.error("[PDF Parse Error] Failed to extract text:", pdfErr);
       return NextResponse.json({ error: "Failed to parse PDF document. Ensure it is a valid PDF." }, { status: 400 });
