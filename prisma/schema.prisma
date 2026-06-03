@@ -1,0 +1,66 @@
+// prisma/schema.prisma
+
+datasource db {
+  provider = "sqlite"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id           String           @id @default(uuid())
+  email        String           @unique
+  passwordHash String
+  createdAt    DateTime         @default(now())
+  profiles     StudentProfile[]
+}
+
+model StudentProfile {
+  id         String               @id @default(uuid())
+  userId     String
+  user       User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name       String
+  grade      String               // "LKG", "UKG", "Class 1" through "Class 8"
+  board      String               // CBSE, ICSE, UP_BOARD, JAC, MSBSHSE, WBBSE, MPBSE, RBSE, BSEB
+  parentPin   String               @default("0000")
+  parentEmail String?
+  parentPhone String?
+  worksheets  GeneratedWorksheet[]
+  weaknesses  WeaknessLog[]
+  createdAt   DateTime             @default(now())
+}
+
+model GeneratedWorksheet {
+  id               String          @id @default(uuid())
+  studentProfileId String?         // Nullable for guest worksheets
+  clientIp         String?         // Tracked for guest rate limits
+  studentProfile   StudentProfile? @relation(fields: [studentProfileId], references: [id], onDelete: SetNull)
+  subject          String          // MATH, SCIENCE, ENGLISH, EVS
+  topic            String          // NCERT Chapter name for CBSE, Topic for others
+  difficulty       String          // EASY, MEDIUM, HARD
+  contentJson      String          // Text-based or exam structured JSON
+  score            Int?            // Tally inputted by parent
+  totalMarks       Int             // Max score target (e.g. 10 or 20)
+  attemptsJson     String?         // JSON history array of all attempt grades: [{ score: Int, date: DateTime }]
+  createdAt        DateTime        @default(now())
+}
+
+model WeaknessLog {
+  id               String         @id @default(uuid())
+  studentProfileId String
+  studentProfile   StudentProfile @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
+  subject          String          // MATH, SCIENCE, ENGLISH, EVS
+  topic            String          // Topic/Chapter grouping
+  subtopic         String          // Concept tag from question
+  errorCount       Int            @default(0)
+  successCount     Int            @default(0)
+  lastTestedAt     DateTime       @default(now())
+}
+
+model WorksheetCache {
+  id          String   @id @default(uuid())
+  cacheKey    String   @unique // board-grade-subject-topic-difficulty
+  contentJson String
+  createdAt   DateTime @default(now())
+}
