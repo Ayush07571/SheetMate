@@ -1,7 +1,7 @@
 // src/app/worksheets/[id]/page.tsx
 "use client";
 import React, { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import ThreeBackground from "@/components/ThreeBackground";
 
 interface Question {
@@ -54,9 +54,10 @@ interface WorksheetData {
   activities?: Activity[];
 }
 
-export default function WorksheetPage({ params }: { params: Promise<{ id: string }> }) {
+export default function WorksheetPage() {
   const router = useRouter();
-  const { id } = React.use(params);
+  const params = useParams();
+  const id = params?.id as string;
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -295,7 +296,7 @@ export default function WorksheetPage({ params }: { params: Promise<{ id: string
                   <h2 style={{ fontSize: "1.15rem", borderBottom: "2px solid #000", paddingBottom: "4px", marginBottom: "14px", color: "#4f46e5" }}>
                     {section.name}
                   </h2>
-                  {section.questions.map((q, qIdx) => (
+                  {section.questions?.map((q, qIdx) => (
                     <div key={q.id} className="question-block" style={{ marginBottom: "20px", fontSize: "0.95rem" }}>
                       <p style={{ fontWeight: 600, color: "#000" }}>
                         Q{qIdx + 1 + (idx === 1 ? 5 : idx === 2 ? 8 : 0)}: {q.text}
@@ -303,7 +304,7 @@ export default function WorksheetPage({ params }: { params: Promise<{ id: string
                       
                       {q.type === "MCQ" && q.options && (
                         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", paddingLeft: "14px", marginTop: "8px" }}>
-                          {q.options.map((opt, oIdx) => (
+                          {q.options?.map((opt, oIdx) => (
                             <div key={oIdx}>
                               {String.fromCharCode(97 + oIdx)}) {opt}
                             </div>
@@ -376,7 +377,7 @@ export default function WorksheetPage({ params }: { params: Promise<{ id: string
                     <h3 style={{ fontSize: "1.1rem", borderBottom: "1.5px solid #000", paddingBottom: "4px", marginBottom: "10px", color: "#000" }}>
                       Answers: {section.name}
                     </h3>
-                    {section.questions.map((q, qIdx) => (
+                    {section.questions?.map((q, qIdx) => (
                       <div key={q.id} style={{ marginBottom: "14px", fontSize: "0.9rem" }}>
                         <p style={{ fontWeight: 700, color: "#000" }}>
                           Q{qIdx + 1 + (idx === 1 ? 5 : idx === 2 ? 8 : 0)}: Correct Answer: {q.answer}

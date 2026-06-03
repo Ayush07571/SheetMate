@@ -41,6 +41,11 @@ export default function GeneratorWizard({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // UX states for loading profiles and progress indicator
+  const [loadingProfile, setLoadingProfile] = useState(false);
+  const [progressMsg, setProgressMsg] = useState("Consulting CBSE syllabus guidelines...");
+  const [progressPercent, setProgressPercent] = useState(10);
+
   // Force includeAnswerKey to false for guest users
   useEffect(() => {
     if (!studentProfileId) {
@@ -52,13 +57,17 @@ export default function GeneratorWizard({
 
   // Auto-prefill grade and jump to step 2 if a student profile is active
   useEffect(() => {
-    if (!studentProfileId) {
+    const savedId = localStorage.getItem("sheetmate_profile_id");
+    if (!savedId) {
       setStep(1);
+      setLoadingProfile(false);
       return;
     }
+
     async function loadActiveProfile() {
       try {
-        const res = await fetch(`/api/student/dashboard?id=${studentProfileId}`);
+        setLoadingProfile(true);
+        const res = await fetch(`/api/student/dashboard?id=${savedId}`);
         if (res.ok) {
           const data = await res.json();
           if (data.profile) {
@@ -68,10 +77,41 @@ export default function GeneratorWizard({
         }
       } catch (err) {
         console.error("Failed to prefill wizard details:", err);
+      } finally {
+        setLoadingProfile(false);
       }
     }
     loadActiveProfile();
   }, [studentProfileId]);
+
+  // Progress message cycler for worksheet generation
+  useEffect(() => {
+    if (!loading) {
+      setProgressPercent(10);
+      setProgressMsg("Consulting CBSE syllabus guidelines...");
+      return;
+    }
+    
+    const msgs = [
+      { text: "Consulting CBSE syllabus guidelines...", pct: 15 },
+      { text: "Structuring exam paper layout...", pct: 35 },
+      { text: "Generating high-quality questions with AI...", pct: 60 },
+      { text: "Drafting correct answer keys & explanations...", pct: 80 },
+      { text: "Formatting print-ready PDF configurations...", pct: 95 }
+    ];
+    
+    let currentIdx = 0;
+    const interval = setInterval(() => {
+      if (currentIdx < msgs.length - 1) {
+        currentIdx++;
+        setProgressMsg(msgs[currentIdx].text);
+        setProgressPercent(msgs[currentIdx].pct);
+      }
+    }, 2200);
+    
+    return () => clearInterval(interval);
+  }, [loading]);
+
 
   // Retrieve chapters list (flat structure — no board key)
   const getTopics = (): { id: string; name: string }[] => {
@@ -175,6 +215,97 @@ export default function GeneratorWizard({
 
   const topics = getTopics();
   const allSelected = topics.length > 0 && selectedTopicIds.length === topics.length;
+
+  if (loadingProfile) {
+    return (
+      <div className="glass-card" style={{ 
+        padding: "32px", 
+        width: "100%", 
+        display: "flex", 
+        flexDirection: "column", 
+        alignItems: "center", 
+        justifyContent: "center", 
+        minHeight: "340px", 
+        textAlign: "center" 
+      }}>
+        <div style={{
+          width: "40px",
+          height: "40px",
+          border: "3px solid rgba(124, 58, 237, 0.1)",
+          borderTop: "3px solid var(--accent-purple)",
+          borderRadius: "50%",
+          animation: "spin 1s linear infinite",
+          marginBottom: "16px"
+        }} />
+        <style>{`
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        `}</style>
+        <p style={{ color: "var(--text-secondary)", fontSize: "0.9rem" }}>Loading child profile workspace...</p>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="glass-card" style={{ 
+        padding: "32px", 
+        width: "100%", 
+        display: "flex", 
+        flexDirection: "column", 
+        alignItems: "center", 
+        justifyContent: "center", 
+        minHeight: "340px", 
+        textAlign: "center" 
+      }}>
+        {/* Animated Spinner */}
+        <div style={{
+          width: "50px",
+          height: "50px",
+          border: "3px solid rgba(124, 58, 237, 0.1)",
+          borderTop: "3px solid var(--accent-purple)",
+          borderRadius: "50%",
+          animation: "spin 1s linear infinite",
+          marginBottom: "24px"
+        }} />
+        <style>{`
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        `}</style>
+        
+        <h3 className="gradient-text" style={{ fontSize: "1.25rem", marginBottom: "8px", fontFamily: "var(--font-heading)" }}>Generating Worksheet</h3>
+        <p style={{ color: "var(--text-secondary)", fontSize: "0.85rem", marginBottom: "20px", minHeight: "24px" }}>
+          {progressMsg}
+        </p>
+        
+        {/* Progress Bar */}
+        <div style={{
+          width: "100%",
+          maxWidth: "280px",
+          height: "6px",
+          background: "rgba(255, 255, 255, 0.05)",
+          borderRadius: "3px",
+          overflow: "hidden",
+          marginBottom: "8px"
+        }}>
+          <div style={{
+            width: `${progressPercent}%`,
+            height: "100%",
+            background: "linear-gradient(90deg, var(--accent-purple), var(--accent-cyan))",
+            borderRadius: "3px",
+            transition: "width 0.8s ease"
+          }} />
+        </div>
+        <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
+          Estimated time: 10 - 15 seconds
+        </span>
+      </div>
+    );
+  }
 
   return (
     <div className="glass-card" style={{ padding: "32px", width: "100%" }}>
