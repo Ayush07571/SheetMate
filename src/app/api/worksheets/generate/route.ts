@@ -68,7 +68,7 @@ export async function POST(req: NextRequest) {
       });
 
       if (weaknesses.length > 0) {
-        weaknessContext = weaknesses.map(w => w.subtopic).join(", ");
+        weaknessContext = weaknesses.map((w: any) => w.subtopic).join(", ");
       }
     } else {
       // 3. Guest User: Check Worksheet Cache first
