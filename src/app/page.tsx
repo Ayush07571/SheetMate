@@ -12,6 +12,8 @@ export default function HomePage() {
   const [studentProfileId, setStudentProfileId] = useState<string | null>(null);
   const [studentProfile, setStudentProfile] = useState<any | null>(null);
   const [showLogoutToast, setShowLogoutToast] = useState(false);
+  const [activeTab, setActiveTab] = useState<"home" | "practice" | "features" | "perks">("home");
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Sync profile ID on load
   useEffect(() => {
@@ -45,6 +47,36 @@ export default function HomePage() {
     }
   }, []);
 
+  // Scroll Spy to sync active navbar tab dynamically
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollPos = window.scrollY;
+      if (scrollPos < 150) {
+        setActiveTab("home");
+        return;
+      }
+
+      const sections: ("practice" | "features" | "perks")[] = ["practice", "features", "perks"];
+      let currentSection: "home" | "practice" | "features" | "perks" = "home";
+
+      for (const sec of sections) {
+        const el = document.getElementById(`${sec}-section`);
+        if (el) {
+          const rect = el.getBoundingClientRect();
+          if (rect.top <= window.innerHeight * 0.4 && rect.bottom >= window.innerHeight * 0.4) {
+            currentSection = sec;
+          }
+        }
+      }
+      setActiveTab(currentSection);
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    handleScroll();
+
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [studentProfileId]);
+
   const handleLogOut = () => {
     localStorage.removeItem("sheetmate_profile_id");
     setStudentProfileId(null);
@@ -75,7 +107,7 @@ export default function HomePage() {
   };
 
   return (
-    <main style={{ minHeight: "100vh", position: "relative", padding: "20px" }}>
+    <main style={{ minHeight: "100vh", position: "relative" }} className="responsive-container">
       {/* 3D WebGL Floating Background */}
       <ThreeBackground />
 
@@ -84,117 +116,121 @@ export default function HomePage() {
           from { transform: translate(-50%, -30px); opacity: 0; }
           to { transform: translate(-50%, 0); opacity: 1; }
         }
+        @media (max-width: 480px) {
+          .mockup-scale-wrapper {
+            --scale-mockup: 0.85;
+          }
+        }
+        @media (max-width: 380px) {
+          .mockup-scale-wrapper {
+            --scale-mockup: 0.72;
+          }
+        }
       `}</style>
 
-      {/* Toast Notification for Guest Mode / Logout */}
-      {showLogoutToast && (
-        <div style={{
-          position: "fixed",
-          top: "20px",
-          left: "50%",
-          transform: "translateX(-50%)",
-          zIndex: 1000,
-          background: "rgba(15, 23, 42, 0.85)",
-          backdropFilter: "blur(12px)",
-          border: "1px solid rgba(6, 182, 212, 0.45)",
-          boxShadow: "0 0 25px rgba(6, 182, 212, 0.3), inset 0 0 12px rgba(255,255,255,0.05)",
-          borderRadius: "12px",
-          padding: "14px 20px",
-          display: "flex",
-          alignItems: "center",
-          gap: "14px",
-          maxWidth: "480px",
-          width: "calc(100% - 40px)",
-          animation: "slideDown 0.3s ease forwards"
-        }}>
-          <div style={{
-            width: "36px",
-            height: "36px",
-            background: "rgba(6, 182, 212, 0.15)",
-            borderRadius: "50%",
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            color: "var(--accent-cyan)",
-            fontSize: "1.2rem",
-            flexShrink: 0
-          }}>
-            ℹ
-          </div>
-          <div style={{ flex: 1, textAlign: "left" }}>
-            <h4 style={{ margin: 0, fontSize: "0.88rem", fontWeight: 700, color: "var(--text-primary)" }}>
-              Working as Guest User
-            </h4>
-            <p style={{ margin: "2px 0 0 0", fontSize: "0.76rem", color: "var(--text-secondary)", lineHeight: 1.3 }}>
-              You are logged out. Worksheets are limited to 4 per 24 hours. Create a profile to unlock unlimited generation.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => setShowLogoutToast(false)}
-            style={{
-              background: "none",
-              border: "none",
-              color: "var(--text-muted)",
-              cursor: "pointer",
-              fontSize: "1.2rem",
-              padding: "0 4px",
-              display: "flex",
-              alignItems: "center"
+      {/* Tubelight Floating Glassmorphic Navbar */}
+      {/* Tubelight Floating Glassmorphic Navbar */}
+      <nav className={`tubelight-nav ${mobileMenuOpen ? "open" : ""}`}>
+        <div className="tubelight-brand" onClick={() => router.push("/")}>
+          <div className="tubelight-brand-logo" />
+          <span className="tubelight-brand-text">
+            Sheet<span style={{ color: "var(--accent-purple)" }}>Mate</span>
+          </span>
+        </div>
+        
+        <div className="tubelight-links-group">
+          <span
+            className={`tubelight-link ${activeTab === "home" ? "active" : ""}`}
+            onClick={() => {
+              window.scrollTo({ top: 0, behavior: "smooth" });
+              setActiveTab("home");
             }}
           >
-            ×
-          </button>
-        </div>
-      )}
-
-      {/* Navigation bar header */}
-      <header
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          maxWidth: "1200px",
-          margin: "0 auto 40px auto",
-          padding: "20px 0",
-          borderBottom: "1px solid rgba(255, 255, 255, 0.05)"
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer" }} onClick={() => router.push("/")}>
-          <div
-            style={{
-              width: "32px",
-              height: "32px",
-              background: "linear-gradient(135deg, var(--accent-purple), var(--accent-cyan))",
-              borderRadius: "8px"
-            }}
-          />
-          <h2 style={{ fontSize: "1.4rem", fontFamily: "var(--font-heading)" }}>
-            Sheet<span style={{ color: "var(--accent-purple)" }}>Mate</span>
-          </h2>
-        </div>
-        <nav style={{ display: "flex", gap: "20px", alignItems: "center" }}>
+            Home
+          </span>
           <span
-            style={{ color: "var(--text-secondary)", fontSize: "0.9rem", cursor: "pointer" }}
+            className={`tubelight-link ${activeTab === "practice" ? "active" : ""}`}
+            onClick={() => {
+              const el = document.getElementById("practice-section");
+              if (el) el.scrollIntoView({ behavior: "smooth" });
+              setActiveTab("practice");
+            }}
+          >
+            Practice
+          </span>
+          <span
+            className={`tubelight-link ${activeTab === "features" ? "active" : ""}`}
             onClick={() => {
               const el = document.getElementById("features-section");
               if (el) el.scrollIntoView({ behavior: "smooth" });
+              setActiveTab("features");
             }}
           >
             Features
           </span>
+          {!studentProfileId && (
+            <span
+              className={`tubelight-link ${activeTab === "perks" ? "active" : ""}`}
+              onClick={() => {
+                const el = document.getElementById("perks-section");
+                if (el) el.scrollIntoView({ behavior: "smooth" });
+                setActiveTab("perks");
+              }}
+            >
+              Perks
+            </span>
+          )}
+          {studentProfileId && (
+            <span
+              className="tubelight-link"
+              onClick={() => router.push("/dashboard")}
+            >
+              Dashboard
+            </span>
+          )}
+        </div>
+
+        <div className="tubelight-actions">
           {studentProfileId ? (
             <>
-              <span 
-                style={{ color: "var(--text-secondary)", fontSize: "0.9rem", cursor: "pointer", fontWeight: 600 }}
+              {/* Profile Avatar Chip */}
+              <div 
                 onClick={() => router.push("/dashboard")}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "10px",
+                  background: "rgba(124, 58, 237, 0.12)",
+                  border: "1px solid rgba(124, 58, 237, 0.25)",
+                  padding: "5px 12px",
+                  borderRadius: "20px",
+                  cursor: "pointer",
+                  transition: "var(--transition-smooth)"
+                }}
               >
-                Dashboard
-              </span>
+                <div style={{
+                  width: "24px",
+                  height: "24px",
+                  borderRadius: "50%",
+                  background: "linear-gradient(135deg, var(--accent-purple), var(--accent-cyan))",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: "0.75rem",
+                  fontWeight: 800,
+                  color: "#fff"
+                }}>
+                  {studentProfile?.name ? studentProfile.name[0].toUpperCase() : "S"}
+                </div>
+                <span style={{ fontSize: "0.8rem", fontWeight: 700, color: "#fff" }} className="no-print">
+                  {studentProfile?.name || "Student"}
+                </span>
+                <span style={{ width: "6px", height: "6px", background: "#10b981", borderRadius: "50%", display: "inline-block", boxShadow: "0 0 6px #10b981" }} className="pulse-dot" />
+              </div>
               <button
                 type="button"
                 className="btn-secondary"
-                style={{ padding: "8px 18px", fontSize: "0.85rem", borderColor: "rgba(239, 68, 68, 0.4)", color: "#fca5a5" }}
+                style={{ padding: "6px 14px", fontSize: "0.78rem", borderColor: "rgba(239, 68, 68, 0.3)", color: "#fca5a5", borderRadius: "20px" }}
                 onClick={handleLogOut}
               >
                 Log Out
@@ -202,90 +238,325 @@ export default function HomePage() {
             </>
           ) : (
             <>
-              <span style={{ color: "var(--text-secondary)", fontSize: "0.9rem", cursor: "pointer" }}>Curriculum</span>
               <button
                 type="button"
                 className="btn-secondary"
-                style={{ padding: "8px 18px", fontSize: "0.85rem" }}
+                style={{ padding: "6px 14px", fontSize: "0.78rem", borderRadius: "20px" }}
                 onClick={() => router.push("/dashboard")}
               >
                 Student Log In
               </button>
+              <button
+                type="button"
+                className="btn-primary"
+                style={{ padding: "6px 16px", fontSize: "0.78rem", borderRadius: "20px", boxShadow: "none" }}
+                onClick={() => router.push("/dashboard?mode=signup")}
+              >
+                Register
+              </button>
             </>
           )}
-        </nav>
-      </header>
+        </div>
 
-      {/* Main Hero grid layout */}
+        {/* Hamburger Menu Toggle for Mobile */}
+        <button 
+          type="button"
+          className={`tubelight-hamburger ${mobileMenuOpen ? "open" : ""}`}
+          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          aria-label="Toggle Navigation Menu"
+        >
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+
+        {/* Mobile Drawer */}
+        <div className="tubelight-mobile-drawer">
+          <span
+            className={`tubelight-mobile-link ${activeTab === "home" ? "active" : ""}`}
+            onClick={() => {
+              window.scrollTo({ top: 0, behavior: "smooth" });
+              setActiveTab("home");
+              setMobileMenuOpen(false);
+            }}
+          >
+            Home
+          </span>
+          <span
+            className={`tubelight-mobile-link ${activeTab === "practice" ? "active" : ""}`}
+            onClick={() => {
+              const el = document.getElementById("practice-section");
+              if (el) el.scrollIntoView({ behavior: "smooth" });
+              setActiveTab("practice");
+              setMobileMenuOpen(false);
+            }}
+          >
+            Practice
+          </span>
+          <span
+            className={`tubelight-mobile-link ${activeTab === "features" ? "active" : ""}`}
+            onClick={() => {
+              const el = document.getElementById("features-section");
+              if (el) el.scrollIntoView({ behavior: "smooth" });
+              setActiveTab("features");
+              setMobileMenuOpen(false);
+            }}
+          >
+            Features
+          </span>
+          {!studentProfileId && (
+            <span
+              className={`tubelight-mobile-link ${activeTab === "perks" ? "active" : ""}`}
+              onClick={() => {
+                const el = document.getElementById("perks-section");
+                if (el) el.scrollIntoView({ behavior: "smooth" });
+                setActiveTab("perks");
+                setMobileMenuOpen(false);
+              }}
+            >
+              Perks
+            </span>
+          )}
+          {studentProfileId && (
+            <span
+              className="tubelight-mobile-link"
+              onClick={() => {
+                router.push("/dashboard");
+                setMobileMenuOpen(false);
+              }}
+            >
+              Dashboard
+            </span>
+          )}
+          
+          <div className="tubelight-mobile-actions">
+            {studentProfileId ? (
+              <>
+                <div 
+                  onClick={() => {
+                    router.push("/dashboard");
+                    setMobileMenuOpen(false);
+                  }}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "10px",
+                    background: "rgba(124, 58, 237, 0.12)",
+                    border: "1px solid rgba(124, 58, 237, 0.25)",
+                    padding: "8px 16px",
+                    borderRadius: "20px",
+                    cursor: "pointer",
+                    color: "#fff",
+                    fontWeight: 700
+                  }}
+                >
+                  <div style={{
+                    width: "24px",
+                    height: "24px",
+                    borderRadius: "50%",
+                    background: "linear-gradient(135deg, var(--accent-purple), var(--accent-cyan))",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: "0.75rem",
+                    fontWeight: 800,
+                    color: "#fff"
+                  }}>
+                    {studentProfile?.name ? studentProfile.name[0].toUpperCase() : "S"}
+                  </div>
+                  <span>{studentProfile?.name || "Student"}</span>
+                  <span style={{ width: "6px", height: "6px", background: "#10b981", borderRadius: "50%", display: "inline-block", boxShadow: "0 0 6px #10b981" }} className="pulse-dot" />
+                </div>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  style={{ width: "100%", padding: "10px", fontSize: "0.85rem", borderColor: "rgba(239, 68, 68, 0.3)", color: "#fca5a5", borderRadius: "20px" }}
+                  onClick={() => {
+                    handleLogOut();
+                    setMobileMenuOpen(false);
+                  }}
+                >
+                  Log Out
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  style={{ width: "100%", padding: "10px", fontSize: "0.85rem", borderRadius: "20px" }}
+                  onClick={() => {
+                    router.push("/dashboard");
+                    setMobileMenuOpen(false);
+                  }}
+                >
+                  Student Log In
+                </button>
+                <button
+                  type="button"
+                  className="btn-primary"
+                  style={{ width: "100%", padding: "10px", fontSize: "0.85rem", borderRadius: "20px", boxShadow: "none" }}
+                  onClick={() => {
+                    router.push("/dashboard?mode=signup");
+                    setMobileMenuOpen(false);
+                  }}
+                >
+                  Register
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      </nav>
+
+      {/* 1. Hero Section (Home fold) */}
       <section
         style={{
           maxWidth: "1200px",
           margin: "0 auto",
+          minHeight: "75vh",
           display: "grid",
-          gridTemplateColumns: "1fr",
-          gap: "40px",
+          gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
+          gap: "50px",
           alignItems: "center",
-          paddingBottom: "80px"
+          paddingBottom: "40px",
+          paddingTop: "40px"
         }}
       >
-        {/* On desktop, switch to a 2-column layout */}
+        {/* Hero Left Column: Copy & Call to Action */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+          <div>
+            {studentProfile ? (
+              <div style={{ display: "inline-flex", alignItems: "center", gap: "8px", background: "rgba(16, 185, 129, 0.12)", padding: "6px 12px", borderRadius: "20px", border: "1px solid rgba(16, 185, 129, 0.25)" }}>
+                <span style={{ width: "8px", height: "8px", background: "#10b981", borderRadius: "50%", display: "inline-block", boxShadow: "0 0 8px #10b981" }} className="pulse-dot" />
+                <span style={{ fontSize: "0.75rem", fontWeight: 700, color: "#34d399", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                  Active Profile: {studentProfile.name} ({studentProfile.grade})
+                </span>
+              </div>
+            ) : (
+              <span
+                style={{
+                  fontSize: "0.75rem",
+                  fontWeight: 700,
+                  color: "var(--accent-cyan)",
+                  background: "rgba(6, 182, 212, 0.12)",
+                  padding: "6px 12px",
+                  borderRadius: "20px",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.05em",
+                  border: "1px solid rgba(6, 182, 212, 0.2)"
+                }}
+              >
+                Guest Workspace (Limited Mode)
+              </span>
+            )}
+            <h1
+              style={{
+                fontSize: "clamp(2.4rem, 5.5vw, 3.4rem)",
+                lineHeight: 1.1,
+                marginTop: "16px",
+                marginBottom: "16px",
+                fontFamily: "var(--font-heading)"
+              }}
+              className="gradient-text"
+            >
+              Tailored worksheets. Aligned to CBSE syllabus.
+            </h1>
+            <p style={{ color: "var(--text-secondary)", fontSize: "1.1rem", maxWidth: "520px", lineHeight: 1.6 }}>
+              {studentProfile
+                ? "Your adaptive learning workspace is ready. Practice sheets are custom-weighted to target your conceptual weaknesses."
+                : "Create standard CBSE-aligned printable worksheets (Class LKG - Class 8) in seconds. Lock parent analytics & grade sheets via OTP."}
+            </p>
+          </div>
+
+          <div>
+            <button
+              type="button"
+              className="btn-primary"
+              style={{ padding: "16px 36px", fontSize: "1.05rem", display: "inline-flex", gap: "10px", alignItems: "center" }}
+              onClick={() => {
+                const el = document.getElementById("practice-section");
+                if (el) el.scrollIntoView({ behavior: "smooth" });
+                setActiveTab("practice");
+              }}
+            >
+              <span>Create Practice Sheet</span>
+              <span>⚡</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Hero Right Column: Graphic badge cards */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+          <div className="glass-card" style={{ padding: "24px", display: "flex", gap: "18px", alignItems: "flex-start" }}>
+            <div style={{ fontSize: "1.5rem", background: "rgba(124, 58, 237, 0.1)", padding: "10px", borderRadius: "8px", border: "1px solid rgba(124, 58, 237, 0.2)" }}>🎒</div>
+            <div>
+              <h4 style={{ fontSize: "1rem", color: "var(--text-primary)", fontWeight: 700 }}>LKG to Class 8 Syllabus</h4>
+              <p style={{ fontSize: "0.85rem", color: "var(--text-secondary)", marginTop: "4px" }}>Aligned with latest NCERT patterns and textbooks.</p>
+            </div>
+          </div>
+          <div className="glass-card" style={{ padding: "24px", display: "flex", gap: "18px", alignItems: "flex-start" }}>
+            <div style={{ fontSize: "1.5rem", background: "rgba(6, 182, 212, 0.1)", padding: "10px", borderRadius: "8px", border: "1px solid rgba(6, 182, 212, 0.2)" }}>🎯</div>
+            <div>
+              <h4 style={{ fontSize: "1rem", color: "var(--text-primary)", fontWeight: 700 }}>Adaptive Learning Paths</h4>
+              <p style={{ fontSize: "0.85rem", color: "var(--text-secondary)", marginTop: "4px" }}>60% of questions auto-target previously missed concepts.</p>
+            </div>
+          </div>
+          <div className="glass-card" style={{ padding: "24px", display: "flex", gap: "18px", alignItems: "flex-start" }}>
+            <div style={{ fontSize: "1.5rem", background: "rgba(16, 185, 129, 0.1)", padding: "10px", borderRadius: "8px", border: "1px solid rgba(16, 185, 129, 0.2)" }}>📊</div>
+            <div>
+              <h4 style={{ fontSize: "1rem", color: "var(--text-primary)", fontWeight: 700 }}>Interactive Parent Dashboard</h4>
+              <p style={{ fontSize: "0.85rem", color: "var(--text-secondary)", marginTop: "4px" }}>Grade worksheets on-screen & follow detailed progress charts.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 2. Worksheet Generator Section */}
+      <section
+        id="practice-section"
+        style={{
+          maxWidth: "1200px",
+          margin: "40px auto 80px auto",
+          padding: "60px 20px",
+          borderTop: "1px solid rgba(255, 255, 255, 0.05)"
+        }}
+      >
+        <div style={{ textAlign: "center", marginBottom: "40px" }}>
+          <span
+            style={{
+              fontSize: "0.75rem",
+              fontWeight: 700,
+              color: "var(--accent-cyan)",
+              background: "rgba(6, 182, 212, 0.12)",
+              padding: "6px 12px",
+              borderRadius: "20px",
+              textTransform: "uppercase",
+              letterSpacing: "0.05em",
+              border: "1px solid rgba(6, 182, 212, 0.2)"
+            }}
+          >
+            Practice Workspace
+          </span>
+          <h2 className="gradient-text" style={{ fontSize: "2.1rem", marginTop: "12px", marginBottom: "12px" }}>
+            Generate Customized Worksheet
+          </h2>
+          <p style={{ color: "var(--text-secondary)", fontSize: "1rem", maxWidth: "600px", margin: "0 auto" }}>
+            Select your syllabus details below. SheetMate AI will construct a targeted practice sheet instantly.
+          </p>
+        </div>
+
         <div
           style={{
             display: "grid",
             gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
             gap: "50px",
-            alignItems: "center"
+            alignItems: "flex-start"
           }}
         >
-          {/* Column 1: Info and Wizard */}
+          {/* Left Column: Generator Wizard */}
           <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
-            <div>
-              {studentProfile ? (
-                <div style={{ display: "inline-flex", alignItems: "center", gap: "8px", background: "rgba(16, 185, 129, 0.12)", padding: "6px 12px", borderRadius: "20px", border: "1px solid rgba(16, 185, 129, 0.25)" }}>
-                  <span style={{ width: "8px", height: "8px", background: "#10b981", borderRadius: "50%", display: "inline-block", boxShadow: "0 0 8px #10b981" }} className="pulse-dot" />
-                  <span style={{ fontSize: "0.75rem", fontWeight: 700, color: "#34d399", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                    Active Profile: {studentProfile.name} ({studentProfile.grade})
-                  </span>
-                </div>
-              ) : (
-                <span
-                  style={{
-                    fontSize: "0.75rem",
-                    fontWeight: 700,
-                    color: "var(--accent-cyan)",
-                    background: "rgba(6, 182, 212, 0.12)",
-                    padding: "6px 12px",
-                    borderRadius: "20px",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.05em",
-                    border: "1px solid rgba(6, 182, 212, 0.2)"
-                  }}
-                >
-                  Guest Workspace (Limited Mode)
-                </span>
-              )}
-              <h1
-                style={{
-                  fontSize: "clamp(2.2rem, 5vw, 3rem)",
-                  lineHeight: 1.1,
-                  marginTop: "16px",
-                  marginBottom: "16px",
-                  fontFamily: "var(--font-heading)"
-                }}
-                className="gradient-text"
-              >
-                {studentProfile 
-                  ? `Adaptive practice workspace for ${studentProfile.name}.`
-                  : "Worksheets aligned to your child's exam pattern."}
-              </h1>
-              <p style={{ color: "var(--text-secondary)", fontSize: "1.05rem", maxWidth: "480px" }}>
-                {studentProfile
-                  ? "Your learning strengths and weaknesses are actively being tracked. Generating worksheets will automatically target topics you struggled with before."
-                  : "Generate customized worksheets aligned to CBSE syllabus in seconds (ICSE and State Boards coming soon). Enter scores to adapt future worksheets to their weak areas automatically."}
-              </p>
-            </div>
-
-            {/* Generator Wizard widget */}
             <GeneratorWizard
               studentProfileId={studentProfileId}
               onSelectionChange={handleSelectionChange}
@@ -293,23 +564,26 @@ export default function HomePage() {
             />
           </div>
 
-          {/* Column 2: Live interactive 3D paper mockup */}
+          {/* Right Column: Live interactive 3D paper mockup */}
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
             <div style={{ marginBottom: "20px", textAlign: "center" }}>
               <p style={{ fontSize: "0.85rem", color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
                 Interactive Live Preview
               </p>
               <p style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
-                Hover to tilt sheet &bull; Syncs with wizard selections
+                Hover to tilt sheet &amp; syncs with wizard selections
               </p>
             </div>
-            <PreviewPaper
-              board={selections.board}
-              grade={selections.grade}
-              subject={selections.subject}
-              topicName={selections.topicNames.length > 1 ? `${selections.topicNames.length} Chapters` : (selections.topicNames[0] || "Select Chapters")}
-              difficulty={selections.difficulty}
-            />
+            <div style={{ transform: "scale(var(--scale-mockup, 1))", transformOrigin: "center", transition: "transform 0.3s ease", width: "100%", display: "flex", justifyContent: "center" }} className="mockup-scale-wrapper">
+              <PreviewPaper
+                board={selections.board}
+                grade={selections.grade}
+                subject={selections.subject}
+                topicName={selections.topicNames.length > 1 ? `${selections.topicNames.length} Chapters` : (selections.topicNames[0] || "Select Chapters")}
+                difficulty={selections.difficulty}
+                studentName={studentProfile?.name}
+              />
+            </div>
           </div>
         </div>
       </section>
@@ -393,6 +667,7 @@ export default function HomePage() {
       {/* Guest vs. Profile Perks Comparison Section */}
       {!studentProfileId && (
         <section
+          id="perks-section"
           style={{
             maxWidth: "1200px",
             margin: "40px auto 80px auto",

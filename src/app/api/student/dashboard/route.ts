@@ -57,6 +57,7 @@ export async function GET(req: NextRequest) {
         parentEmail: profile.parentEmail,
         parentPhone: profile.parentPhone,
         studentPhone: profile.studentPhone,
+        username: profile.username,
         password: profile.password
       },
       worksheets,

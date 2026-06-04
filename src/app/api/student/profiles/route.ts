@@ -13,11 +13,10 @@ export async function GET(req: NextRequest) {
       return NextResponse.json([]);
     }
 
-    // Fetch active profiles associated with the specific student mobile number and password
+    // Fetch active profiles associated with the parent's mobile number
     const profiles = await prisma.studentProfile.findMany({
       where: {
-        studentPhone: { equals: contact, mode: "insensitive" },
-        password: password
+        parentPhone: { equals: contact, mode: "insensitive" }
       },
       orderBy: { name: "asc" },
       select: {

@@ -34,12 +34,14 @@ interface Profile {
   parentEmail?: string | null;
   parentPhone?: string | null;
   studentPhone?: string | null;
+  username?: string | null;
   password?: string;
 }
 
 export default function DashboardPage() {
   const router = useRouter();
   const [profileId, setProfileId] = useState<string | null>(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
   // App states
   const [loading, setLoading] = useState(true);
@@ -55,6 +57,17 @@ export default function DashboardPage() {
   const [parentContactInput, setParentContactInput] = useState("");
   const [hasSearchedProfiles, setHasSearchedProfiles] = useState(false);
 
+  // New Tabbed Auth states
+  const [signInTab, setSignInTab] = useState<"student" | "parent">("student");
+  const [studentUsernameInput, setStudentUsernameInput] = useState("");
+  const [studentPasswordInput, setStudentPasswordInput] = useState("");
+  const [parentPhoneInput, setParentPhoneInput] = useState("");
+  const [parentOtpInput, setParentOtpInput] = useState("");
+  const [parentOtpCode, setParentOtpCode] = useState("");
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpError, setOtpError] = useState<string | null>(null);
+  const [verifyingOtp, setVerifyingOtp] = useState(false);
+
   // Profile Login Password verification states
   const [selectedProfileForLogin, setSelectedProfileForLogin] = useState<Profile | null>(null);
   const [loginPassword, setLoginPassword] = useState("");
@@ -65,9 +78,10 @@ export default function DashboardPage() {
 
   // Registration form states
   const [regName, setRegName] = useState("");
+  const [regUsername, setRegUsername] = useState("");
   const [regGrade, setRegGrade] = useState("Class 6");
   const [regBoard, setRegBoard] = useState("CBSE");
-  const [regPin, setRegPin] = useState("");
+  const [regPin, setRegPin] = useState("0000");
   const [regParentEmail, setRegParentEmail] = useState("");
   const [regParentPhone, setRegParentPhone] = useState("");
   const [regStudentPhone, setRegStudentPhone] = useState("");
@@ -84,11 +98,10 @@ export default function DashboardPage() {
   const [editSimulatedAlert, setEditSimulatedAlert] = useState<string | null>(null);
   const [editParentVerified, setEditParentVerified] = useState(false);
 
-  // OTP Verification states for PIN configuration and forgot-PIN flows
+  // OTP Verification states for PIN configuration and forgot-PIN flows (Deprecated)
   const [pinModalMode, setPinModalMode] = useState<"enter" | "otp_verify" | "set_new">("enter");
   const [generatedOtp, setGeneratedOtp] = useState("");
   const [otpInput, setOtpInput] = useState("");
-  const [otpError, setOtpError] = useState<string | null>(null);
   const [newPinInput, setNewPinInput] = useState("");
   const [confirmPinInput, setConfirmPinInput] = useState("");
   const [simulatedAlert, setSimulatedAlert] = useState<string | null>(null);
@@ -142,6 +155,7 @@ export default function DashboardPage() {
   // Edit Profile states
   const [showEditModal, setShowEditModal] = useState(false);
   const [editName, setEditName] = useState("");
+  const [editUsername, setEditUsername] = useState("");
   const [editGrade, setEditGrade] = useState("Class 6");
   const [editBoard, setEditBoard] = useState("CBSE");
   const [editStudentPhone, setEditStudentPhone] = useState("");
@@ -149,7 +163,7 @@ export default function DashboardPage() {
   const [showEditPassword, setShowEditPassword] = useState(false);
   const [submittingEdit, setSubmittingEdit] = useState(false);
 
-  // Read local ID on mount
+  // Read local ID and parent session on mount
   useEffect(() => {
     // Check mode query param
     const searchParams = new URLSearchParams(window.location.search);
@@ -164,6 +178,11 @@ export default function DashboardPage() {
     } else {
       setLoading(false);
     }
+
+    const savedParentPhone = localStorage.getItem("sheetmate_parent_phone");
+    if (savedParentPhone) {
+      setParentUnlocked(true);
+    }
   }, []);
 
   // Reset states when switching auth mode
@@ -176,30 +195,44 @@ export default function DashboardPage() {
     setRegPassword("");
     setShowRegPassword(false);
     setShowLoginPassword(false);
+    setOtpSent(false);
+    setParentPhoneInput("");
+    setParentOtpInput("");
+    setStudentUsernameInput("");
+    setStudentPasswordInput("");
+    setSimulatedAlert(null);
   }, [authMode]);
 
-  const getPasswordStrength = (pwd: string): { score: number; label: string; color: string } => {
-    if (!pwd) return { score: 0, label: "", color: "transparent" };
-    if (pwd.length < 6) return { score: 1, label: "Too short (min 6 chars)", color: "#ef4444" };
-    const hasLetter = /[a-zA-Z]/.test(pwd);
-    const hasNumber = /[0-9]/.test(pwd);
-    if (!hasLetter || !hasNumber) {
-      return { score: 2, label: "Weak (must contain letters & numbers)", color: "#f97316" };
+  const getPasswordStrength = (pwd: string): { score: number; label: string; color: string; feedback: { key: string; text: string; passed: boolean }[] } => {
+    const feedback = [
+      { key: "length", text: "At least 8 characters", passed: pwd.length >= 8 },
+      { key: "uppercase", text: "At least one uppercase letter (A-Z)", passed: /[A-Z]/.test(pwd) },
+      { key: "lowercase", text: "At least one lowercase letter (a-z)", passed: /[a-z]/.test(pwd) },
+      { key: "number", text: "At least one number (0-9)", passed: /[0-9]/.test(pwd) },
+      { key: "special", text: "At least one special character (e.g. !@#$%^&*)", passed: /[^A-Za-z0-9]/.test(pwd) }
+    ];
+
+    if (!pwd) return { score: 0, label: "", color: "transparent", feedback };
+
+    const passedCount = feedback.filter(f => f.passed).length;
+    let label = "Weak";
+    let color = "#ef4444";
+    if (passedCount === 5) {
+      label = "Strong";
+      color = "#10b981";
+    } else if (passedCount >= 3) {
+      label = "Moderate";
+      color = "#3b82f6";
     }
-    if (pwd.length >= 8) {
-      return { score: 4, label: "Strong", color: "#10b981" };
-    }
-    return { score: 3, label: "Good", color: "#3b82f6" };
+
+    return { score: passedCount, label, color, feedback };
   };
 
   const validatePasswordStrength = (pwd: string): string | null => {
-    if (pwd.length < 6) {
-      return "Password must be at least 6 characters long.";
-    }
-    const hasLetter = /[a-zA-Z]/.test(pwd);
-    const hasNumber = /[0-9]/.test(pwd);
-    if (!hasLetter || !hasNumber) {
-      return "Password must contain both letters and numbers.";
+    const strength = getPasswordStrength(pwd);
+    const failedItems = strength.feedback.filter(f => !f.passed);
+    if (failedItems.length > 0) {
+      return `Password does not meet strength requirements. Missing:\n${failedItems.map(f => `• ${f.text}`).join("\n")}`;
     }
     return null;
   };
@@ -261,6 +294,11 @@ export default function DashboardPage() {
     e.preventDefault();
     if (!regName.trim()) return;
 
+    if (!regUsername.trim()) {
+      setError("Username is required.");
+      return;
+    }
+
     const pwdError = validatePasswordStrength(regPassword);
     if (pwdError) {
       setError(pwdError);
@@ -282,6 +320,7 @@ export default function DashboardPage() {
           parentEmail: regParentEmail || null,
           parentPhone: regParentPhone || null,
           studentPhone: regStudentPhone || null,
+          username: regUsername.trim(),
           password: regPassword
         })
       });
@@ -291,6 +330,8 @@ export default function DashboardPage() {
         throw new Error(data.error || "Failed to register profile");
       }
 
+      localStorage.removeItem("sheetmate_parent_phone");
+      setParentUnlocked(false);
       localStorage.setItem("sheetmate_profile_id", data.profileId);
       setProfileId(data.profileId);
 
@@ -306,164 +347,170 @@ export default function DashboardPage() {
     setProfileId(pId);
   };
 
-  const handlePasswordLoginSubmit = async (e: React.FormEvent) => {
+  const handleStudentLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedProfileForLogin) return;
+    if (!studentUsernameInput.trim() || !studentPasswordInput) return;
+
+    setLoadingProfiles(true);
+    setError(null);
 
     try {
-      setLoggingIn(true);
-      setLoginError(null);
-
       const res = await fetch("/api/student/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          profileId: selectedProfileForLogin.id,
-          password: loginPassword
+          username: studentUsernameInput.trim(),
+          password: studentPasswordInput
         })
       });
 
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || "Incorrect password");
+        throw new Error(data.error || "Login failed");
       }
 
-      // Successful login
-      localStorage.setItem("sheetmate_profile_id", selectedProfileForLogin.id);
-      setProfileId(selectedProfileForLogin.id);
-      setSelectedProfileForLogin(null);
-      setLoginPassword("");
-      setLoginError(null);
+      localStorage.removeItem("sheetmate_parent_phone");
+      setParentUnlocked(false);
+      localStorage.setItem("sheetmate_profile_id", data.profileId);
+      setProfileId(data.profileId);
+      setStudentUsernameInput("");
+      setStudentPasswordInput("");
     } catch (err) {
-      setLoginError((err as Error).message || "Verification failed");
+      setError((err as Error).message || "Verification failed");
     } finally {
-      setLoggingIn(false);
+      setLoadingProfiles(false);
     }
   };
 
-  const handlePinSubmit = (e: React.FormEvent) => {
+  const handleParentOtpRequest = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!profile) return;
+    if (!parentPhoneInput.trim()) return;
 
-    if (pinInput === profile.parentPin) {
-      setParentUnlocked(true);
-      setShowPinModal(false);
-      setPinInput("");
-      setPinError(null);
-      
-      if (pendingGradingWorksheetId) {
-        const wsId = pendingGradingWorksheetId;
-        setPendingGradingWorksheetId(null);
-        setTimeout(() => {
-          openGrader(wsId, true);
-        }, 100);
-      } else if (pendingEditProfile) {
-        setPendingEditProfile(false);
-        setTimeout(() => {
-          openEditModal();
-        }, 100);
-      }
-    } else {
-      setPinError("Invalid parent PIN. Please try again.");
-    }
-  };
-
-  // Trigger OTP/configure PIN flow automatically if the PIN is "0000" (unconfigured)
-  useEffect(() => {
-    if (showPinModal && profile) {
-      if (profile.parentPin === "0000") {
-        setPinModalMode("otp_verify");
-        const otp = Math.floor(1000 + Math.random() * 9000).toString();
-        setGeneratedOtp(otp);
-        setOtpInput("");
-        setOtpError(null);
-        setSimulatedAlert(`[Simulated Notification] Sent verification code ${otp} to ${profile.parentEmail || profile.parentPhone || "Parent"}`);
-      } else {
-        setPinModalMode("enter");
-        setPinInput("");
-        setPinError(null);
-        setSimulatedAlert(null);
-      }
-    }
-  }, [showPinModal, profile]);
-
-  const handleForgotPin = () => {
-    if (!profile) return;
-    setPinModalMode("otp_verify");
-    const otp = Math.floor(1000 + Math.random() * 9000).toString();
-    setGeneratedOtp(otp);
-    setOtpInput("");
-    setOtpError(null);
-    setSimulatedAlert(`[Simulated Notification] Forgot PIN verification code ${otp} sent to ${profile.parentEmail || profile.parentPhone || "Parent"}`);
-  };
-
-  const handleVerifyOtp = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (otpInput === generatedOtp) {
-      setPinModalMode("set_new");
-      setOtpError(null);
-      setNewPinInput("");
-      setConfirmPinInput("");
-    } else {
-      setOtpError("Incorrect OTP verification code. Please try again.");
-    }
-  };
-
-  const handleResendOtp = () => {
-    if (!profile) return;
-    const otp = Math.floor(1000 + Math.random() * 9000).toString();
-    setGeneratedOtp(otp);
-    setOtpInput("");
-    setOtpError(null);
-    setSimulatedAlert(`[Simulated Notification] New verification code ${otp} sent to ${profile.parentEmail || profile.parentPhone || "Parent"}`);
-  };
-
-  const handleSaveNewPin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!profileId || !profile) return;
-
-    if (newPinInput.length !== 4) {
-      setOtpError("PIN must be exactly 4 digits.");
-      return;
-    }
-    if (newPinInput !== confirmPinInput) {
-      setOtpError("PINs do not match. Please verify.");
-      return;
-    }
+    setLoadingProfiles(true);
+    setError(null);
+    setOtpSent(false);
+    setSimulatedAlert(null);
 
     try {
-      const res = await fetch("/api/student/profile", {
-        method: "PUT",
+      const res = await fetch("/api/parent/otp", {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: profileId,
-          name: profile.name,
-          grade: profile.grade,
-          board: profile.board,
-          parentPin: newPinInput,
-          parentEmail: profile.parentEmail,
-          parentPhone: profile.parentPhone
-        })
+        body: JSON.stringify({ parentPhone: parentPhoneInput.trim() })
       });
 
+      const data = await res.json();
       if (!res.ok) {
-        throw new Error("Failed to save new PIN");
+        throw new Error(data.error || "Failed to request OTP");
       }
 
-      // Update local profile state
-      setProfile(prev => prev ? { ...prev, parentPin: newPinInput } : null);
+      setParentOtpCode(data.otp);
+      setOtpSent(true);
+      setSimulatedAlert(data.message);
+    } catch (err) {
+      setError((err as Error).message || "Failed to send OTP");
+    } finally {
+      setLoadingProfiles(false);
+    }
+  };
 
-      // Unlock parent view and close modal
+  const handleParentOtpVerify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (parentOtpInput !== parentOtpCode) {
+      setError("Incorrect OTP verification code. Please try again.");
+      return;
+    }
+
+    setLoadingProfiles(true);
+    setError(null);
+
+    try {
+      localStorage.setItem("sheetmate_parent_phone", parentPhoneInput.trim());
+      setParentUnlocked(true);
+      setHasSearchedProfiles(true);
+      
+      const res = await fetch(`/api/student/profiles?contact=${encodeURIComponent(parentPhoneInput.trim())}`);
+      if (res.ok) {
+        const data = await res.json();
+        setExistingProfiles(data);
+      } else {
+        setExistingProfiles([]);
+      }
+    } catch (err) {
+      console.error("Failed to load profiles:", err);
+      setExistingProfiles([]);
+    } finally {
+      setLoadingProfiles(false);
+      setOtpSent(false);
+      setParentOtpInput("");
+      setParentOtpCode("");
+      setSimulatedAlert(null);
+    }
+  };
+
+  const openParentUnlockModal = () => {
+    setError(null);
+    setOtpSent(false);
+    setParentOtpInput("");
+    setParentOtpCode("");
+    setSimulatedAlert(null);
+    setShowPinModal(true);
+    
+    if (profile && profile.parentPhone) {
+      fetch("/api/parent/otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ parentPhone: profile.parentPhone })
+      })
+        .then(res => {
+          if (!res.ok) throw new Error("Failed to send OTP");
+          return res.json();
+        })
+        .then(data => {
+          setParentOtpCode(data.otp);
+          setOtpSent(true);
+          setSimulatedAlert(data.message);
+        })
+        .catch(err => {
+          setError(err.message || "Failed to send verification code.");
+        });
+    } else {
+      setError("No parent mobile number registered to this profile. Please update profile details in settings.");
+    }
+  };
+
+  const handleRequestWorkspaceParentOtp = async () => {
+    if (!profile || !profile.parentPhone) return;
+    setError(null);
+    setOtpSent(false);
+    setSimulatedAlert(null);
+    try {
+      const res = await fetch("/api/parent/otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ parentPhone: profile.parentPhone })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to trigger OTP");
+
+      setParentOtpCode(data.otp);
+      setOtpSent(true);
+      setSimulatedAlert(data.message);
+    } catch (err) {
+      setError((err as Error).message || "Failed to send verification code.");
+    }
+  };
+
+  const handleVerifyWorkspaceParentOtp = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (parentOtpInput === parentOtpCode) {
       setParentUnlocked(true);
       setShowPinModal(false);
-      
-      // Reset modal state
-      setNewPinInput("");
-      setConfirmPinInput("");
-      setOtpError(null);
+      setParentOtpInput("");
+      setParentOtpCode("");
       setSimulatedAlert(null);
+      setError(null);
+      setOtpSent(false);
 
-      // Complete pending actions
       if (pendingGradingWorksheetId) {
         const wsId = pendingGradingWorksheetId;
         setPendingGradingWorksheetId(null);
@@ -476,11 +523,12 @@ export default function DashboardPage() {
           openEditModal();
         }, 100);
       }
-
-    } catch (err) {
-      setOtpError("Failed to update parent PIN. Please try again.");
+    } else {
+      setError("Incorrect OTP verification code. Please try again.");
     }
   };
+
+  // Deprecated PIN effects and handlers removed for separate Parent OTP flow.
 
   const handlePdfUpload = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -525,7 +573,7 @@ export default function DashboardPage() {
   const openGrader = async (wsId: string, bypassPinCheck = false) => {
     if (!parentUnlocked && !bypassPinCheck) {
       setPendingGradingWorksheetId(wsId);
-      setShowPinModal(true);
+      openParentUnlockModal();
       return;
     }
 
@@ -682,6 +730,7 @@ export default function DashboardPage() {
   const handleProfileReset = () => {
     if (confirm("Are you sure you want to log out and switch student profiles? Your history remains saved under your profile key.")) {
       localStorage.removeItem("sheetmate_profile_id");
+      localStorage.removeItem("sheetmate_parent_phone");
       localStorage.setItem("sheetmate_show_logout_toast", "true");
       setProfileId(null);
       setProfile(null);
@@ -696,6 +745,7 @@ export default function DashboardPage() {
   const openEditModal = () => {
     if (!profile) return;
     setEditName(profile.name);
+    setEditUsername(profile.username || "");
     setEditGrade(profile.grade);
     setEditBoard(profile.board);
     setEditParentEmail(profile.parentEmail || "");
@@ -714,6 +764,11 @@ export default function DashboardPage() {
   const handleEditSubmit = async (e: React.FormEvent, bypassOtp = false) => {
     e.preventDefault();
     if (!profileId || !profile || !editName.trim()) return;
+
+    if (!editUsername.trim()) {
+      alert("Username is required.");
+      return;
+    }
 
     const pwdError = validatePasswordStrength(editPassword);
     if (pwdError) {
@@ -750,6 +805,7 @@ export default function DashboardPage() {
           parentEmail: editParentEmail || null,
           parentPhone: editParentPhone || null,
           studentPhone: editStudentPhone || null,
+          username: editUsername.trim(),
           password: editPassword
         })
       });
@@ -767,6 +823,7 @@ export default function DashboardPage() {
         parentEmail: editParentEmail || null,
         parentPhone: editParentPhone || null,
         studentPhone: editStudentPhone || null,
+        username: editUsername.trim(),
         password: editPassword
       } : null);
 
@@ -839,10 +896,94 @@ export default function DashboardPage() {
   // Render Authentication screen (Sign In vs Sign Up selector)
   if (!profileId) {
     return (
-      <main style={{ minHeight: "100vh", padding: "20px" }}>
+      <main className="responsive-container" style={{ minHeight: "100vh" }}>
         <ThreeBackground />
         
-        <div style={{ maxWidth: authMode === "signup" ? "900px" : "500px", margin: "60px auto", position: "relative", transition: "max-width 0.3s ease" }}>
+        {/* Floating Tubelight Navbar for Auth */}
+        <nav className={`tubelight-nav ${mobileMenuOpen ? "open" : ""}`}>
+          <div className="tubelight-brand" onClick={() => router.push("/")}>
+            <div className="tubelight-brand-logo" />
+            <span className="tubelight-brand-text">
+              Sheet<span style={{ color: "var(--accent-purple)" }}>Mate</span>
+            </span>
+          </div>
+          
+          <div className="tubelight-actions">
+            <span className="tubelight-link" onClick={() => router.push("/")} style={{ marginRight: "4px" }}>
+              Home
+            </span>
+            {authMode === "signin" ? (
+              <button
+                type="button"
+                className="btn-primary"
+                style={{ padding: "6px 16px", fontSize: "0.78rem", borderRadius: "20px", boxShadow: "none" }}
+                onClick={() => setAuthMode("signup")}
+              >
+                Register
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="btn-secondary"
+                style={{ padding: "6px 14px", fontSize: "0.78rem", borderRadius: "20px" }}
+                onClick={() => setAuthMode("signin")}
+              >
+                Sign In
+              </button>
+            )}
+          </div>
+
+          {/* Hamburger Menu Toggle for Mobile */}
+          <button 
+            type="button"
+            className={`tubelight-hamburger ${mobileMenuOpen ? "open" : ""}`}
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            aria-label="Toggle Navigation Menu"
+          >
+            <span></span>
+            <span></span>
+            <span></span>
+          </button>
+
+          {/* Mobile Drawer */}
+          <div className="tubelight-mobile-drawer">
+            <span className="tubelight-mobile-link" onClick={() => {
+              router.push("/");
+              setMobileMenuOpen(false);
+            }}>
+              Home
+            </span>
+            <div className="tubelight-mobile-actions">
+              {authMode === "signin" ? (
+                <button
+                  type="button"
+                  className="btn-primary"
+                  style={{ width: "100%", padding: "10px", fontSize: "0.85rem", borderRadius: "20px" }}
+                  onClick={() => {
+                    setAuthMode("signup");
+                    setMobileMenuOpen(false);
+                  }}
+                >
+                  Register
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  style={{ width: "100%", padding: "10px", fontSize: "0.85rem", borderRadius: "20px" }}
+                  onClick={() => {
+                    setAuthMode("signin");
+                    setMobileMenuOpen(false);
+                  }}
+                >
+                  Sign In
+                </button>
+              )}
+            </div>
+          </div>
+        </nav>
+        
+        <div style={{ maxWidth: authMode === "signup" ? "900px" : "500px", margin: "20px auto 60px auto", position: "relative", transition: "max-width 0.3s ease" }}>
           <div className="glass-card" style={{ padding: "40px" }}>
             <h1 className="gradient-text" style={{ fontSize: "1.8rem", marginBottom: "8px", textAlign: "center" }}>
               {authMode === "signin" ? "Who is practicing today?" : "Create Student Profile"}
@@ -854,159 +995,253 @@ export default function DashboardPage() {
             </p>
 
             {authMode === "signin" ? (
-              // SIGN IN: Secure Search & Selection Flow
+              // SIGN IN: Tabbed Student vs Parent Gateway
               <div>
-                <form onSubmit={handleSearchProfiles} style={{ marginBottom: "24px" }}>
-                  <div className="form-group" style={{ marginBottom: "16px" }}>
-                    <label className="form-label" style={{ display: "block", marginBottom: "8px", fontSize: "0.9rem" }}>
-                      Student Mobile Number
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. +91 98765 43210"
-                      className="form-input"
-                      value={parentContactInput}
-                      onChange={e => setParentContactInput(e.target.value)}
-                    />
-                  </div>
-
-                  <div className="form-group" style={{ marginBottom: "24px" }}>
-                    <label className="form-label" style={{ display: "block", marginBottom: "8px", fontSize: "0.9rem" }}>
-                      Profile Password
-                    </label>
-                    <div style={{ position: "relative" }}>
-                      <input
-                        type={showLoginPassword ? "text" : "password"}
-                        required
-                        placeholder="••••••••"
-                        className="form-input"
-                        style={{ paddingRight: "50px" }}
-                        value={loginPassword}
-                        onChange={e => setLoginPassword(e.target.value)}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowLoginPassword(!showLoginPassword)}
-                        style={{
-                          position: "absolute",
-                          right: "10px",
-                          top: "50%",
-                          transform: "translateY(-50%)",
-                          background: "none",
-                          border: "none",
-                          color: "var(--accent-purple)",
-                          cursor: "pointer",
-                          fontSize: "0.8rem",
-                          fontWeight: 600
-                        }}
-                      >
-                        {showLoginPassword ? "Hide" : "Show"}
-                      </button>
-                    </div>
-                  </div>
-
-                  {error && (
-                    <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid #ef4444", padding: "12px", borderRadius: "6px", color: "#fca5a5", fontSize: "0.85rem", marginBottom: "20px" }}>
-                      {error}
-                    </div>
-                  )}
-
-                  <button type="submit" className="btn-primary" style={{ width: "100%", padding: "12px", fontSize: "0.95rem" }} disabled={loadingProfiles}>
-                    {loadingProfiles ? "Signing In..." : "Sign In & Find Profiles"}
+                {/* Tabs selection */}
+                <div style={{ display: "flex", borderBottom: "1px solid var(--border-glow)", marginBottom: "24px" }}>
+                  <button
+                    type="button"
+                    style={{
+                      flex: 1,
+                      background: "none",
+                      border: "none",
+                      borderBottom: signInTab === "student" ? "2px solid var(--accent-purple)" : "none",
+                      color: signInTab === "student" ? "var(--text-primary)" : "var(--text-secondary)",
+                      padding: "12px",
+                      cursor: "pointer",
+                      fontWeight: 700,
+                      fontSize: "0.9rem",
+                      transition: "all 0.2s"
+                    }}
+                    onClick={() => { setSignInTab("student"); setError(null); }}
+                  >
+                    🎒 Student Portal
                   </button>
-                </form>
+                  <button
+                    type="button"
+                    style={{
+                      flex: 1,
+                      background: "none",
+                      border: "none",
+                      borderBottom: signInTab === "parent" ? "2px solid var(--accent-cyan)" : "none",
+                      color: signInTab === "parent" ? "var(--text-primary)" : "var(--text-secondary)",
+                      padding: "12px",
+                      cursor: "pointer",
+                      fontWeight: 700,
+                      fontSize: "0.9rem",
+                      transition: "all 0.2s"
+                    }}
+                    onClick={() => { setSignInTab("parent"); setError(null); }}
+                  >
+                    👨‍👩‍👦 Parent Portal
+                  </button>
+                </div>
 
-                {loadingProfiles ? (
-                  <p style={{ textAlign: "center", color: "var(--text-muted)", padding: "20px" }}>Loading profiles...</p>
-                ) : !hasSearchedProfiles ? (
-                  <div style={{ display: "flex", flexDirection: "column", gap: "14px", marginBottom: "24px" }}>
-                    <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", textAlign: "center", marginBottom: "12px" }}>
-                      Please enter your student mobile number and password to retrieve and access your profiles.
-                    </p>
-                    {/* Guest Selection Card */}
-                    <div
-                      onClick={() => {
-                        localStorage.removeItem("sheetmate_profile_id");
-                        localStorage.setItem("sheetmate_show_logout_toast", "true");
-                        router.push("/");
-                      }}
-                      style={{
-                        background: "rgba(6, 182, 212, 0.04)",
-                        border: "1px dashed rgba(6, 182, 212, 0.4)",
-                        borderRadius: "8px",
-                        padding: "16px",
-                        cursor: "pointer",
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        transition: "var(--transition-smooth)"
-                      }}
-                      className="selection-card"
-                    >
-                      <div style={{ textAlign: "left" }}>
-                        <h4 style={{ fontWeight: 700, color: "var(--accent-cyan)" }}>Practice as Guest</h4>
-                        <p style={{ fontSize: "0.75rem", color: "var(--text-secondary)", marginTop: "2px" }}>
-                          Generate one-off worksheets for others
-                        </p>
-                      </div>
-                      <span style={{ color: "var(--accent-cyan)", fontWeight: 600, fontSize: "0.85rem" }}>Enter &rarr;</span>
+                {signInTab === "student" ? (
+                  /* STUDENT LOGIN FORM */
+                  <form onSubmit={handleStudentLogin} style={{ marginBottom: "24px" }}>
+                    <div className="form-group" style={{ marginBottom: "16px" }}>
+                      <label className="form-label">Student Username</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. aarav123"
+                        className="form-input"
+                        value={studentUsernameInput}
+                        onChange={e => setStudentUsernameInput(e.target.value.replace(/\s+/g, ""))}
+                      />
                     </div>
-                  </div>
-                ) : existingProfiles.length === 0 ? (
-                  <div style={{ textAlign: "center", padding: "20px 0", marginBottom: "24px" }}>
-                    <p style={{ color: "var(--text-secondary)", fontSize: "0.95rem" }}>No profiles found for these contact and password details.</p>
-                    <button 
-                      type="button" 
-                      className="btn-primary" 
-                      style={{ marginTop: "16px", padding: "8px 20px", fontSize: "0.85rem" }}
-                      onClick={() => setAuthMode("signup")}
-                    >
-                      Create First Profile
-                    </button>
-                  </div>
-                ) : (
-                  <div style={{ display: "flex", flexDirection: "column", gap: "12px", maxHeight: "300px", overflowY: "auto", paddingRight: "8px", marginBottom: "24px" }}>
-                    <p style={{ color: "var(--text-secondary)", fontSize: "0.85rem", marginBottom: "8px" }}>
-                      Select a profile to continue:
-                    </p>
-                    {existingProfiles.map(p => (
-                      <div
-                        key={p.id}
-                        onClick={() => selectProfile(p.id)}
-                        style={{
-                          background: "rgba(255,255,255,0.03)",
-                          border: "1px solid var(--border-glow)",
-                          borderRadius: "8px",
-                          padding: "16px",
-                          cursor: "pointer",
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                          transition: "var(--transition-smooth)"
-                        }}
-                        className="selection-card"
-                      >
-                        <div>
-                          <h4 style={{ fontWeight: 700, color: "var(--text-primary)" }}>{p.name}</h4>
-                          <p style={{ fontSize: "0.75rem", color: "var(--text-secondary)", marginTop: "2px" }}>
-                            {p.board.replace("_", " ")} &bull; {p.grade}
-                          </p>
-                        </div>
-                        <span style={{ color: "var(--accent-purple)", fontWeight: 600, fontSize: "0.85rem" }}>Practice &rarr;</span>
+                    <div className="form-group" style={{ marginBottom: "24px" }}>
+                      <label className="form-label">Profile Password</label>
+                      <div style={{ position: "relative" }}>
+                        <input
+                          type={showLoginPassword ? "text" : "password"}
+                          required
+                          placeholder="••••••••"
+                          className="form-input"
+                          style={{ paddingRight: "50px" }}
+                          value={studentPasswordInput}
+                          onChange={e => setStudentPasswordInput(e.target.value)}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowLoginPassword(!showLoginPassword)}
+                          style={{
+                            position: "absolute",
+                            right: "10px",
+                            top: "50%",
+                            transform: "translateY(-50%)",
+                            background: "none",
+                            border: "none",
+                            color: "var(--accent-purple)",
+                            cursor: "pointer",
+                            fontSize: "0.8rem",
+                            fontWeight: 600
+                          }}
+                        >
+                          {showLoginPassword ? "Hide" : "Show"}
+                        </button>
                       </div>
-                    ))}
-                    
-                    {/* Guest Selection Card */}
+                    </div>
+
+                    {error && (
+                      <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid #ef4444", padding: "12px", borderRadius: "6px", color: "#fca5a5", fontSize: "0.85rem", marginBottom: "20px" }}>
+                        {error}
+                      </div>
+                    )}
+
+                    <button type="submit" className="btn-primary" style={{ width: "100%" }} disabled={loadingProfiles}>
+                      {loadingProfiles ? "Logging in..." : "Log In as Student 🚀"}
+                    </button>
+                  </form>
+                ) : (
+                  /* PARENT LOGIN BY MOBILE + OTP FORM */
+                  <div>
+                    {!otpSent ? (
+                      <form onSubmit={handleParentOtpRequest} style={{ marginBottom: "24px" }}>
+                        <div className="form-group" style={{ marginBottom: "24px" }}>
+                          <label className="form-label">Parent Mobile Number</label>
+                          <input
+                            type="tel"
+                            required
+                            placeholder="e.g. +91 98765 43210"
+                            className="form-input"
+                            value={parentPhoneInput}
+                            onChange={e => setParentPhoneInput(e.target.value)}
+                          />
+                        </div>
+
+                        {error && (
+                          <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid #ef4444", padding: "12px", borderRadius: "6px", color: "#fca5a5", fontSize: "0.85rem", marginBottom: "20px" }}>
+                            {error}
+                          </div>
+                        )}
+
+                        <button type="submit" className="btn-primary" style={{ width: "100%", background: "linear-gradient(135deg, var(--accent-cyan), #0891b2)" }} disabled={loadingProfiles}>
+                          {loadingProfiles ? "Sending OTP..." : "Request Login OTP 📩"}
+                        </button>
+                      </form>
+                    ) : (
+                      <form onSubmit={handleParentOtpVerify} style={{ marginBottom: "24px" }}>
+                        <div style={{
+                          background: "rgba(6, 182, 212, 0.08)",
+                          border: "1px solid rgba(6, 182, 212, 0.3)",
+                          borderRadius: "8px",
+                          padding: "12px",
+                          marginBottom: "20px",
+                          fontSize: "0.82rem",
+                          color: "#22d3ee",
+                          textAlign: "center",
+                          lineHeight: 1.4
+                        }}>
+                          📨 {simulatedAlert}
+                        </div>
+
+                        <div className="form-group" style={{ marginBottom: "24px" }}>
+                          <label className="form-label">Enter 4-Digit OTP Code</label>
+                          <input
+                            type="text"
+                            maxLength={4}
+                            required
+                            placeholder="e.g. 1234"
+                            className="form-input"
+                            style={{ textAlign: "center", fontSize: "1.3rem", letterSpacing: "0.2em" }}
+                            value={parentOtpInput}
+                            onChange={e => setParentOtpInput(e.target.value.replace(/\D/g, ""))}
+                          />
+                        </div>
+
+                        {error && (
+                          <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid #ef4444", padding: "12px", borderRadius: "6px", color: "#fca5a5", fontSize: "0.85rem", marginBottom: "20px" }}>
+                            {error}
+                          </div>
+                        )}
+
+                        <div style={{ display: "flex", gap: "10px" }}>
+                          <button type="button" className="btn-secondary" style={{ flex: 1 }} onClick={() => { setOtpSent(false); setError(null); setParentOtpInput(""); }}>
+                            Back
+                          </button>
+                          <button type="submit" className="btn-primary" style={{ flex: 1, background: "linear-gradient(135deg, var(--accent-cyan), #0891b2)" }} disabled={loadingProfiles}>
+                            {loadingProfiles ? "Verifying..." : "Verify & Sign In"}
+                          </button>
+                        </div>
+                      </form>
+                    )}
+                  </div>
+                )}
+
+                {/* Profiles lists when search matches parent phone */}
+                {hasSearchedProfiles && (
+                  <div style={{ borderTop: "1px solid var(--border-glow)", paddingTop: "20px", marginBottom: "24px" }}>
+                    {existingProfiles.length === 0 ? (
+                      <div style={{ textAlign: "center", padding: "10px 0" }}>
+                        <p style={{ color: "var(--text-secondary)", fontSize: "0.9rem" }}>
+                          No student profiles linked to parent number <strong>{parentPhoneInput}</strong>.
+                        </p>
+                        <button 
+                          type="button" 
+                          className="btn-primary" 
+                          style={{ marginTop: "16px", padding: "8px 20px", fontSize: "0.85rem" }}
+                          onClick={() => {
+                            setRegParentPhone(parentPhoneInput);
+                            setAuthMode("signup");
+                          }}
+                        >
+                          Create First Child Profile
+                        </button>
+                      </div>
+                    ) : (
+                      <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                        <p style={{ color: "var(--text-secondary)", fontSize: "0.85rem", marginBottom: "4px", textAlign: "left" }}>
+                          Select profile to manage (Parent Mode Unlocked):
+                        </p>
+                        {existingProfiles.map(p => (
+                          <div
+                            key={p.id}
+                            onClick={() => {
+                              selectProfile(p.id);
+                              setParentUnlocked(true);
+                            }}
+                            style={{
+                              background: "rgba(6, 182, 212, 0.04)",
+                              border: "1px solid rgba(6, 182, 212, 0.2)",
+                              borderRadius: "8px",
+                              padding: "16px",
+                              cursor: "pointer",
+                              display: "flex",
+                              justifyContent: "space-between",
+                              alignItems: "center",
+                              transition: "var(--transition-smooth)"
+                            }}
+                            className="selection-card"
+                          >
+                            <div style={{ textAlign: "left" }}>
+                              <h4 style={{ fontWeight: 700, color: "var(--text-primary)" }}>{p.name}</h4>
+                              <p style={{ fontSize: "0.75rem", color: "var(--text-secondary)", marginTop: "2px" }}>
+                                {p.board.replace("_", " ")} &bull; {p.grade}
+                              </p>
+                            </div>
+                            <span style={{ color: "var(--accent-cyan)", fontWeight: 600, fontSize: "0.85rem" }}>Manage Workspace &rarr;</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Guest Practice Option */}
+                {!hasSearchedProfiles && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "24px" }}>
                     <div
                       onClick={() => {
                         localStorage.removeItem("sheetmate_profile_id");
+                        localStorage.removeItem("sheetmate_parent_phone");
                         localStorage.setItem("sheetmate_show_logout_toast", "true");
                         router.push("/");
                       }}
                       style={{
-                        background: "rgba(6, 182, 212, 0.04)",
-                        border: "1px dashed rgba(6, 182, 212, 0.4)",
+                        background: "rgba(255, 255, 255, 0.01)",
+                        border: "1px dashed var(--border-glow)",
                         borderRadius: "8px",
                         padding: "16px",
                         cursor: "pointer",
@@ -1018,12 +1253,12 @@ export default function DashboardPage() {
                       className="selection-card"
                     >
                       <div style={{ textAlign: "left" }}>
-                        <h4 style={{ fontWeight: 700, color: "var(--accent-cyan)" }}>Practice as Guest</h4>
-                        <p style={{ fontSize: "0.75rem", color: "var(--text-secondary)", marginTop: "2px" }}>
-                          Generate one-off worksheets for others
+                        <h4 style={{ fontWeight: 700, color: "var(--text-secondary)" }}>Practice as Guest</h4>
+                        <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: "2px" }}>
+                          Generate practice sheets without progress logs
                         </p>
                       </div>
-                      <span style={{ color: "var(--accent-cyan)", fontWeight: 600, fontSize: "0.85rem" }}>Enter &rarr;</span>
+                      <span style={{ color: "var(--text-muted)", fontWeight: 600, fontSize: "0.85rem" }}>Enter &rarr;</span>
                     </div>
                   </div>
                 )}
@@ -1033,7 +1268,7 @@ export default function DashboardPage() {
                     Need to add a child?{" "}
                     <span 
                       onClick={() => setAuthMode("signup")} 
-                      style={{ color: "#a78bfa", cursor: "pointer", fontWeight: 600 }}
+                      style={{ color: "var(--accent-purple)", cursor: "pointer", fontWeight: 600 }}
                     >
                       Create Profile
                     </span>
@@ -1123,19 +1358,19 @@ export default function DashboardPage() {
                       </div>
 
                       <div className="form-group" style={{ marginBottom: "20px" }}>
-                        <label className="form-label">Student Mobile Number (for Login)</label>
+                        <label className="form-label">Student Username (for Login)</label>
                         <input
-                          type="tel"
+                          type="text"
                           required
-                          placeholder="e.g. +91 98765 43210"
+                          placeholder="e.g. aarav123"
                           className="form-input"
-                          value={regStudentPhone}
-                          onChange={e => setRegStudentPhone(e.target.value)}
+                          value={regUsername}
+                          onChange={e => setRegUsername(e.target.value.toLowerCase().replace(/\s+/g, ""))}
                         />
                       </div>
 
                       <div className="form-group" style={{ marginBottom: "20px" }}>
-                        <label className="form-label">Profile Password (minimum 6 alphanumeric characters)</label>
+                        <label className="form-label">Profile Password (must be strong)</label>
                         <div style={{ position: "relative" }}>
                           <input
                             type={showRegPassword ? "text" : "password"}
@@ -1173,14 +1408,25 @@ export default function DashboardPage() {
                                 <span style={{ color: "var(--text-secondary)" }}>Password Strength:</span>
                                 <span style={{ color: strength.color, fontWeight: 700 }}>{strength.label}</span>
                               </div>
-                              <div style={{ width: "100%", height: "4px", background: "rgba(255,255,255,0.05)", borderRadius: "2px", overflow: "hidden" }}>
+                              <div style={{ width: "100%", height: "4px", background: "rgba(255,255,255,0.05)", borderRadius: "2px", overflow: "hidden", marginBottom: "12px" }}>
                                 <div style={{
-                                  width: `${(strength.score / 4) * 100}%`,
+                                  width: `${(strength.score / 5) * 100}%`,
                                   height: "100%",
                                   background: strength.color,
                                   transition: "width 0.3s ease"
                                 }} />
                               </div>
+                              <ul className="pwd-checklist">
+                                {strength.feedback.map(f => (
+                                  <li 
+                                    key={f.key} 
+                                    className={`pwd-checklist-item ${f.passed ? 'passed' : 'failed'}`}
+                                  >
+                                    <span>{f.passed ? "✓" : "○"}</span>
+                                    <span>{f.text}</span>
+                                  </li>
+                                ))}
+                              </ul>
                             </div>
                           );
                         })()}
@@ -1462,33 +1708,35 @@ export default function DashboardPage() {
   const last10Attempts = allGradedAttempts.slice(-10);
 
   return (
-    <main style={{ minHeight: "100vh", padding: "20px" }}>
+    <main className="responsive-container" style={{ minHeight: "100vh" }}>
       <ThreeBackground />
 
-      {/* Dashboard Top Navigation */}
-      <header
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          maxWidth: "1200px",
-          margin: "0 auto 40px auto",
-          padding: "20px 0",
-          borderBottom: "1px solid rgba(255, 255, 255, 0.05)"
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer" }} onClick={() => router.push("/")}>
-          <div style={{ width: "24px", height: "24px", background: "linear-gradient(135deg, var(--accent-purple), var(--accent-cyan))", borderRadius: "6px" }} />
-          <h2 style={{ fontSize: "1.2rem", fontFamily: "var(--font-heading)" }}>SheetMate</h2>
+      {/* Floating Tubelight Navbar */}
+      <nav className={`tubelight-nav ${mobileMenuOpen ? "open" : ""}`}>
+        <div className="tubelight-brand" onClick={() => router.push("/")}>
+          <div className="tubelight-brand-logo" />
+          <span className="tubelight-brand-text">
+            Sheet<span style={{ color: "var(--accent-purple)" }}>Mate</span>
+          </span>
         </div>
-        <div style={{ display: "flex", gap: "14px", alignItems: "center" }}>
-          <button type="button" className="btn-secondary" style={{ padding: "8px 16px", fontSize: "0.8rem" }} onClick={handleProfileReset}>
+        
+        <div className="tubelight-links-group">
+          <span className="tubelight-link active" onClick={() => router.push("/dashboard")}>
+            Dashboard
+          </span>
+          <span className="tubelight-link" onClick={() => router.push("/")}>
+            + New Worksheet
+          </span>
+        </div>
+
+        <div className="tubelight-actions">
+          <button type="button" className="btn-secondary" style={{ padding: "6px 14px", fontSize: "0.78rem", borderRadius: "20px" }} onClick={handleProfileReset}>
             Switch Profile
           </button>
           <button
             type="button"
             className="btn-secondary"
-            style={{ padding: "8px 16px", fontSize: "0.8rem", borderColor: "rgba(239, 68, 68, 0.4)", color: "#fca5a5" }}
+            style={{ padding: "6px 14px", fontSize: "0.78rem", borderColor: "rgba(239, 68, 68, 0.3)", color: "#fca5a5", borderRadius: "20px" }}
             onClick={() => {
               localStorage.removeItem("sheetmate_profile_id");
               router.push("/");
@@ -1496,11 +1744,61 @@ export default function DashboardPage() {
           >
             Log Out
           </button>
-          <button type="button" className="btn-primary" style={{ padding: "8px 20px", fontSize: "0.8rem" }} onClick={() => router.push("/")}>
-            + New Worksheet
-          </button>
         </div>
-      </header>
+
+        {/* Hamburger Menu Toggle for Mobile */}
+        <button 
+          type="button"
+          className={`tubelight-hamburger ${mobileMenuOpen ? "open" : ""}`}
+          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          aria-label="Toggle Navigation Menu"
+        >
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+
+        {/* Mobile Drawer */}
+        <div className="tubelight-mobile-drawer">
+          <span className="tubelight-mobile-link active" onClick={() => {
+            router.push("/dashboard");
+            setMobileMenuOpen(false);
+          }}>
+            Dashboard
+          </span>
+          <span className="tubelight-mobile-link" onClick={() => {
+            router.push("/");
+            setMobileMenuOpen(false);
+          }}>
+            + New Worksheet
+          </span>
+          <div className="tubelight-mobile-actions">
+            <button 
+              type="button" 
+              className="btn-secondary" 
+              style={{ width: "100%", padding: "10px", fontSize: "0.85rem", borderRadius: "20px" }} 
+              onClick={() => {
+                handleProfileReset();
+                setMobileMenuOpen(false);
+              }}
+            >
+              Switch Profile
+            </button>
+            <button
+              type="button"
+              className="btn-secondary"
+              style={{ width: "100%", padding: "10px", fontSize: "0.85rem", borderColor: "rgba(239, 68, 68, 0.3)", color: "#fca5a5", borderRadius: "20px" }}
+              onClick={() => {
+                localStorage.removeItem("sheetmate_profile_id");
+                router.push("/");
+                setMobileMenuOpen(false);
+              }}
+            >
+              Log Out
+            </button>
+          </div>
+        </div>
+      </nav>
 
       {/* Profile summary banner */}
       {profile && (
@@ -1515,33 +1813,24 @@ export default function DashboardPage() {
             </div>
             
             <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-              {parentUnlocked ? (
-                <div style={{ border: "1px solid #10b981", background: "rgba(16, 185, 129, 0.1)", padding: "10px 16px", borderRadius: "6px", color: "#a7f3d0", fontSize: "0.85rem", display: "flex", gap: "14px", alignItems: "center" }}>
-                  <span>✓ Parent View Active</span>
-                  <button type="button" className="btn-secondary" style={{ padding: "4px 10px", fontSize: "0.75rem", border: "1px solid rgba(16, 185, 129, 0.3)", color: "#a7f3d0" }} onClick={() => setParentUnlocked(false)}>
-                    Lock View
+              {parentUnlocked && (
+                <>
+                  <div style={{ border: "1px solid #10b981", background: "rgba(16, 185, 129, 0.1)", padding: "10px 16px", borderRadius: "6px", color: "#a7f3d0", fontSize: "0.85rem", display: "flex", gap: "14px", alignItems: "center" }}>
+                    <span>✓ Parent View Active</span>
+                    <button type="button" className="btn-secondary" style={{ padding: "4px 10px", fontSize: "0.75rem", border: "1px solid rgba(16, 185, 129, 0.3)", color: "#a7f3d0" }} onClick={() => setParentUnlocked(false)}>
+                      Lock View
+                    </button>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    style={{ borderColor: "var(--accent-cyan)", color: "var(--accent-cyan)", padding: "10px 16px", fontSize: "0.85rem" }}
+                    onClick={openEditModal}
+                  >
+                    Edit Profile
                   </button>
-                </div>
-              ) : (
-                <button type="button" className="btn-secondary" style={{ borderColor: "var(--accent-purple)", color: "#a78bfa", padding: "10px 16px", fontSize: "0.85rem" }} onClick={() => setShowPinModal(true)}>
-                  Unlock Parent Grader
-                </button>
+                </>
               )}
-              <button
-                type="button"
-                className="btn-secondary"
-                style={{ borderColor: "var(--accent-cyan)", color: "var(--accent-cyan)", padding: "10px 16px", fontSize: "0.85rem" }}
-                onClick={() => {
-                  if (parentUnlocked) {
-                    openEditModal();
-                  } else {
-                    setPendingEditProfile(true);
-                    setShowPinModal(true);
-                  }
-                }}
-              >
-                Edit Profile
-              </button>
             </div>
           </div>
         </section>
@@ -1819,7 +2108,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Row 3: Strong vs Weak Topics Breakdown */}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(350px, 1fr))", gap: "24px" }}>
+            <div className="responsive-grid-card" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "24px" }}>
               {/* Concept Masteries (Strong Topics) */}
               <div style={{ background: "rgba(16, 185, 129, 0.02)", border: "1px solid rgba(16, 185, 129, 0.15)", borderRadius: "8px", padding: "20px" }}>
                 <h4 style={{ margin: "0 0 16px 0", fontSize: "1.1rem", fontWeight: 600, color: "#10b981", display: "flex", alignItems: "center", gap: "8px" }}>
@@ -1920,7 +2209,7 @@ export default function DashboardPage() {
           gap: "30px"
         }}
       >
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(350px, 1fr))", gap: "30px" }}>
+        <div className="responsive-grid-card" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "30px" }}>
           
           {/* List 1: Practice sheets history */}
           <div className="glass-card" style={{ padding: "24px" }}>
@@ -2007,14 +2296,16 @@ export default function DashboardPage() {
                             >
                               View
                             </button>
-                            <button
-                              type="button"
-                              className="btn-secondary"
-                              style={{ padding: "4px 10px", fontSize: "0.75rem", borderColor: "var(--accent-purple)", color: "#a78bfa" }}
-                              onClick={() => openGrader(ws.id)}
-                            >
-                              Retake
-                            </button>
+                            {parentUnlocked && (
+                              <button
+                                type="button"
+                                className="btn-secondary"
+                                style={{ padding: "4px 10px", fontSize: "0.75rem", borderColor: "var(--accent-purple)", color: "#a78bfa" }}
+                                onClick={() => openGrader(ws.id)}
+                              >
+                                Regrade
+                              </button>
+                            )}
                             {parentUnlocked && (
                               <button
                                 type="button"
@@ -2051,11 +2342,21 @@ export default function DashboardPage() {
                           <button
                             type="button"
                             className="btn-secondary"
-                            style={{ padding: "6px 12px", fontSize: "0.75rem", borderColor: "var(--accent-purple)", color: "#a78bfa" }}
-                            onClick={() => openGrader(ws.id)}
+                            style={{ padding: "6px 12px", fontSize: "0.75rem" }}
+                            onClick={() => router.push(`/worksheets/${ws.id}`)}
                           >
-                            Grade Sheet
+                            View
                           </button>
+                          {parentUnlocked && (
+                            <button
+                              type="button"
+                              className="btn-secondary"
+                              style={{ padding: "6px 12px", fontSize: "0.75rem", borderColor: "var(--accent-purple)", color: "#a78bfa" }}
+                              onClick={() => openGrader(ws.id)}
+                            >
+                              Grade Sheet
+                            </button>
+                          )}
                           {parentUnlocked && (
                             <button
                               type="button"
@@ -2133,185 +2434,86 @@ export default function DashboardPage() {
         </div>
       </section>
 
-      {/* Parent PIN Lock Modal */}
+      {/* Parent OTP Lock Modal */}
       {showPinModal && (
         <div style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", background: "rgba(0,0,0,0.8)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 100 }}>
           <div className="glass-card" style={{ padding: "30px", width: "100%", maxWidth: "420px", margin: "20px" }}>
-            
-            {pinModalMode === "enter" && (
-              <>
-                <h3 style={{ fontSize: "1.2rem", marginBottom: "8px", textAlign: "center" }}>Enter Parent PIN</h3>
-                <p style={{ color: "var(--text-secondary)", fontSize: "0.85rem", marginBottom: "20px", textAlign: "center" }}>
-                  Please enter your 4-digit security PIN to unlock grading capabilities.
-                </p>
+            <h3 style={{ fontSize: "1.2rem", marginBottom: "8px", textAlign: "center" }}>Unlock Parent Controls</h3>
+            <p style={{ color: "var(--text-secondary)", fontSize: "0.85rem", marginBottom: "20px", textAlign: "center" }}>
+              To view analytics, grade sheets, or edit profile, verify parent access.
+            </p>
 
-                <form onSubmit={handlePinSubmit}>
-                  <div className="form-group" style={{ marginBottom: "24px" }}>
-                    <input
-                      type="password"
-                      maxLength={4}
-                      required
-                      placeholder="••••"
-                      className="form-input"
-                      style={{ textAlign: "center", fontSize: "1.5rem", letterSpacing: "0.3em" }}
-                      value={pinInput}
-                      onChange={e => setPinInput(e.target.value.replace(/\D/g, ""))}
-                    />
-                  </div>
-
-                  {pinError && (
-                    <div style={{ color: "#fca5a5", fontSize: "0.8rem", textAlign: "center", marginBottom: "16px" }}>
-                      {pinError}
-                    </div>
-                  )}
-
-                  <div style={{ display: "flex", gap: "10px" }}>
-                    <button type="button" className="btn-secondary" style={{ flex: 1 }} onClick={() => { setShowPinModal(false); setPinError(null); setPinInput(""); }}>
-                      Cancel
-                    </button>
-                    <button type="submit" className="btn-primary" style={{ flex: 1 }}>
-                      Unlock
-                    </button>
-                  </div>
-
-                  <div style={{ textAlign: "center", marginTop: "20px", borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: "14px" }}>
-                    <button
-                      type="button"
-                      style={{ background: "none", border: "none", color: "var(--accent-purple)", cursor: "pointer", fontSize: "0.82rem", textDecoration: "underline" }}
-                      onClick={handleForgotPin}
-                    >
-                      Forgot PIN? Reset via OTP
-                    </button>
-                  </div>
-                </form>
-              </>
+            {simulatedAlert && (
+              <div style={{
+                background: "rgba(6, 182, 212, 0.08)",
+                border: "1px solid rgba(6, 182, 212, 0.3)",
+                borderRadius: "8px",
+                padding: "12px",
+                marginBottom: "20px",
+                fontSize: "0.82rem",
+                color: "#22d3ee",
+                textAlign: "center",
+                lineHeight: 1.4
+              }}>
+                📨 {simulatedAlert}
+              </div>
             )}
 
-            {pinModalMode === "otp_verify" && (
-              <>
-                <h3 style={{ fontSize: "1.2rem", marginBottom: "8px", textAlign: "center" }}>Verify Parent Access</h3>
-                <p style={{ color: "var(--text-secondary)", fontSize: "0.85rem", marginBottom: "20px", textAlign: "center" }}>
-                  {profile?.parentPin === "0000" 
-                    ? "Setting up parent features. We need to verify parent contact details."
-                    : "Enter the verification code to reset your parent PIN."}
-                </p>
+            <form onSubmit={handleVerifyWorkspaceParentOtp}>
+              <div className="form-group" style={{ marginBottom: "24px" }}>
+                <label className="form-label" style={{ textAlign: "center" }}>
+                  Enter 4-Digit OTP Code sent to parent's phone ({profile?.parentPhone || "N/A"})
+                </label>
+                <input
+                  type="text"
+                  maxLength={4}
+                  required
+                  placeholder="e.g. 1234"
+                  className="form-input"
+                  style={{ textAlign: "center", fontSize: "1.5rem", letterSpacing: "0.3em" }}
+                  value={parentOtpInput}
+                  onChange={e => setParentOtpInput(e.target.value.replace(/\D/g, ""))}
+                />
+              </div>
 
-                {simulatedAlert && (
-                  <div style={{
-                    background: "rgba(6, 182, 212, 0.08)",
-                    border: "1px solid rgba(6, 182, 212, 0.3)",
-                    borderRadius: "8px",
-                    padding: "12px",
-                    marginBottom: "20px",
-                    fontSize: "0.82rem",
-                    color: "#22d3ee",
-                    textAlign: "center",
-                    lineHeight: 1.4
-                  }}>
-                    📨 {simulatedAlert}
-                  </div>
-                )}
-
-                <div style={{ marginBottom: "16px", textAlign: "center", fontSize: "0.82rem", color: "var(--text-secondary)" }}>
-                  Sent to parent: <strong style={{ color: "#fff" }}>{profile?.parentEmail || profile?.parentPhone || "No email/phone"}</strong>
+              {error && (
+                <div style={{ color: "#fca5a5", fontSize: "0.8rem", textAlign: "center", marginBottom: "16px" }}>
+                  {error}
                 </div>
+              )}
 
-                <form onSubmit={handleVerifyOtp}>
-                  <div className="form-group" style={{ marginBottom: "24px" }}>
-                    <input
-                      type="text"
-                      maxLength={4}
-                      required
-                      placeholder="Enter 4-Digit OTP"
-                      className="form-input"
-                      style={{ textAlign: "center", fontSize: "1.3rem", letterSpacing: "0.15em" }}
-                      value={otpInput}
-                      onChange={e => setOtpInput(e.target.value.replace(/\D/g, ""))}
-                    />
-                  </div>
+              <div style={{ display: "flex", gap: "10px" }}>
+                <button 
+                  type="button" 
+                  className="btn-secondary" 
+                  style={{ flex: 1 }} 
+                  onClick={() => { 
+                    setShowPinModal(false); 
+                    setError(null); 
+                    setParentOtpInput(""); 
+                    setParentOtpCode(""); 
+                    setSimulatedAlert(null); 
+                    setPendingGradingWorksheetId(null); 
+                    setPendingEditProfile(false); 
+                  }}
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="btn-primary" style={{ flex: 1 }}>
+                  Verify & Unlock
+                </button>
+              </div>
 
-                  {otpError && (
-                    <div style={{ color: "#fca5a5", fontSize: "0.8rem", textAlign: "center", marginBottom: "16px" }}>
-                      {otpError}
-                    </div>
-                  )}
-
-                  <div style={{ display: "flex", gap: "10px" }}>
-                    <button type="button" className="btn-secondary" style={{ flex: 1 }} onClick={() => { setShowPinModal(false); setOtpError(null); setOtpInput(""); setSimulatedAlert(null); }}>
-                      Cancel
-                    </button>
-                    <button type="submit" className="btn-primary" style={{ flex: 1 }}>
-                      Verify OTP
-                    </button>
-                  </div>
-
-                  <div style={{ textAlign: "center", marginTop: "20px", borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: "14px" }}>
-                    <button
-                      type="button"
-                      style={{ background: "none", border: "none", color: "var(--accent-cyan)", cursor: "pointer", fontSize: "0.82rem", textDecoration: "underline" }}
-                      onClick={handleResendOtp}
-                    >
-                      Resend Verification Code
-                    </button>
-                  </div>
-                </form>
-              </>
-            )}
-
-            {pinModalMode === "set_new" && (
-              <>
-                <h3 style={{ fontSize: "1.2rem", marginBottom: "8px", textAlign: "center" }}>Configure Parent PIN</h3>
-                <p style={{ color: "var(--text-secondary)", fontSize: "0.85rem", marginBottom: "20px", textAlign: "center" }}>
-                  Please set a secure 4-digit PIN for parent access.
-                </p>
-
-                <form onSubmit={handleSaveNewPin}>
-                  <div className="form-group" style={{ marginBottom: "16px" }}>
-                    <label className="form-label" style={{ textAlign: "left" }}>New 4-Digit PIN</label>
-                    <input
-                      type="password"
-                      maxLength={4}
-                      required
-                      placeholder="••••"
-                      className="form-input"
-                      style={{ textAlign: "center", fontSize: "1.3rem", letterSpacing: "0.3em" }}
-                      value={newPinInput}
-                      onChange={e => setNewPinInput(e.target.value.replace(/\D/g, ""))}
-                    />
-                  </div>
-
-                  <div className="form-group" style={{ marginBottom: "24px" }}>
-                    <label className="form-label" style={{ textAlign: "left" }}>Confirm New PIN</label>
-                    <input
-                      type="password"
-                      maxLength={4}
-                      required
-                      placeholder="••••"
-                      className="form-input"
-                      style={{ textAlign: "center", fontSize: "1.3rem", letterSpacing: "0.3em" }}
-                      value={confirmPinInput}
-                      onChange={e => setConfirmPinInput(e.target.value.replace(/\D/g, ""))}
-                    />
-                  </div>
-
-                  {otpError && (
-                    <div style={{ color: "#fca5a5", fontSize: "0.8rem", textAlign: "center", marginBottom: "16px" }}>
-                      {otpError}
-                    </div>
-                  )}
-
-                  <div style={{ display: "flex", gap: "10px" }}>
-                    <button type="button" className="btn-secondary" style={{ flex: 1 }} onClick={() => { setShowPinModal(false); setOtpError(null); setNewPinInput(""); setConfirmPinInput(""); }}>
-                      Cancel
-                    </button>
-                    <button type="submit" className="btn-primary" style={{ flex: 1 }}>
-                      Save PIN
-                    </button>
-                  </div>
-                </form>
-              </>
-            )}
-
+              <div style={{ textAlign: "center", marginTop: "20px", borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: "14px" }}>
+                <button
+                  type="button"
+                  style={{ background: "none", border: "none", color: "var(--accent-purple)", cursor: "pointer", fontSize: "0.82rem", textDecoration: "underline" }}
+                  onClick={handleRequestWorkspaceParentOtp}
+                >
+                  Resend Verification Code
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
@@ -2959,19 +3161,19 @@ export default function DashboardPage() {
                 </div>
 
                 <div className="form-group" style={{ marginBottom: "20px" }}>
-                  <label className="form-label">Student Mobile Number (for Login)</label>
+                  <label className="form-label">Student Username (for Login)</label>
                   <input
-                    type="tel"
+                    type="text"
                     required
-                    placeholder="e.g. +91 98765 43210"
+                    placeholder="e.g. aarav123"
                     className="form-input"
-                    value={editStudentPhone}
-                    onChange={e => setEditStudentPhone(e.target.value)}
+                    value={editUsername}
+                    onChange={e => setEditUsername(e.target.value.toLowerCase().replace(/\s+/g, ""))}
                   />
                 </div>
 
                 <div className="form-group" style={{ marginBottom: "20px" }}>
-                  <label className="form-label">Profile Password (minimum 6 alphanumeric characters)</label>
+                  <label className="form-label">Profile Password (must be strong)</label>
                   <div style={{ position: "relative" }}>
                     <input
                       type={showEditPassword ? "text" : "password"}
@@ -3009,14 +3211,25 @@ export default function DashboardPage() {
                           <span style={{ color: "var(--text-secondary)" }}>Password Strength:</span>
                           <span style={{ color: strength.color, fontWeight: 700 }}>{strength.label}</span>
                         </div>
-                        <div style={{ width: "100%", height: "4px", background: "rgba(255,255,255,0.05)", borderRadius: "2px", overflow: "hidden" }}>
+                        <div style={{ width: "100%", height: "4px", background: "rgba(255,255,255,0.05)", borderRadius: "2px", overflow: "hidden", marginBottom: "12px" }}>
                           <div style={{
-                            width: `${(strength.score / 4) * 100}%`,
+                            width: `${(strength.score / 5) * 100}%`,
                             height: "100%",
                             background: strength.color,
                             transition: "width 0.3s ease"
                           }} />
                         </div>
+                        <ul className="pwd-checklist">
+                          {strength.feedback.map(f => (
+                            <li 
+                              key={f.key} 
+                              className={`pwd-checklist-item ${f.passed ? 'passed' : 'failed'}`}
+                            >
+                              <span>{f.passed ? "✓" : "○"}</span>
+                              <span>{f.text}</span>
+                            </li>
+                          ))}
+                        </ul>
                       </div>
                     );
                   })()}

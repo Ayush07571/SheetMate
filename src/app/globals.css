@@ -252,3 +252,311 @@ h1, h2, h3, h4, h5, h6 {
 .pulse-dot {
   animation: pulse 2s infinite;
 }
+
+/* Tubelight Navbar styles */
+.tubelight-nav {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 999;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(10, 10, 15, 0.75);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 40px;
+  padding: 10px 30px;
+  width: calc(100% - 32px);
+  max-width: 1200px;
+  box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.6), 0 0 30px rgba(124, 58, 237, 0.05);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.tubelight-nav:hover {
+  border-color: rgba(124, 58, 237, 0.25);
+  box-shadow: 0 10px 40px -10px rgba(124, 58, 237, 0.15), 0 0 30px rgba(124, 58, 237, 0.1);
+}
+
+.tubelight-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.tubelight-brand-logo {
+  width: 28px;
+  height: 28px;
+  background: linear-gradient(135deg, var(--accent-purple), var(--accent-cyan));
+  border-radius: 50%;
+  box-shadow: 0 0 12px var(--accent-purple-glow);
+}
+
+.tubelight-brand-text {
+  font-size: 1.25rem;
+  font-family: var(--font-heading);
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.tubelight-links-group {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.tubelight-link {
+  position: relative;
+  color: var(--text-secondary);
+  font-family: var(--font-heading);
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: none;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: var(--transition-smooth);
+}
+
+.tubelight-link:hover {
+  color: var(--text-primary);
+}
+
+.tubelight-link.active {
+  color: #fff;
+}
+
+/* Glowing Neon Tubelight indicator underneath */
+.tubelight-link.active::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 10%;
+  right: 10%;
+  height: 2px;
+  background: linear-gradient(90deg, var(--accent-purple), var(--accent-cyan));
+  border-radius: 10px;
+  box-shadow: 0 0 10px 2px rgba(124, 58, 237, 0.8), 0 0 18px 4px rgba(6, 182, 212, 0.5);
+}
+
+.tubelight-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Responsive and Mobile Styling utilities */
+.responsive-container {
+  padding-top: 100px;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding-left: 20px;
+  padding-right: 20px;
+}
+
+.tubelight-hamburger,
+.tubelight-mobile-drawer {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .responsive-container {
+    padding-top: 120px;
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .tubelight-nav {
+    top: 10px;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    border-radius: 24px;
+    padding: 14px 20px;
+    width: calc(100% - 20px);
+    max-height: 58px;
+    overflow: hidden;
+    transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .tubelight-nav.open {
+    max-height: 420px;
+  }
+
+  .tubelight-links-group {
+    display: none !important;
+  }
+
+  .tubelight-actions {
+    display: none !important;
+  }
+
+  /* Hamburger toggle button */
+  .tubelight-hamburger {
+    display: flex !important;
+    flex-direction: column;
+    justify-content: space-between;
+    width: 24px;
+    height: 16px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    z-index: 1001;
+  }
+
+  .tubelight-hamburger span {
+    width: 100%;
+    height: 2px;
+    background-color: var(--text-primary);
+    border-radius: 2px;
+    transition: all 0.3s ease;
+  }
+  
+  .tubelight-hamburger.open span:nth-child(1) {
+    transform: translateY(7px) rotate(45deg);
+  }
+  .tubelight-hamburger.open span:nth-child(2) {
+    opacity: 0;
+  }
+  .tubelight-hamburger.open span:nth-child(3) {
+    transform: translateY(-7px) rotate(-45deg);
+  }
+
+  /* Mobile links drawer container */
+  .tubelight-mobile-drawer {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    padding-top: 16px;
+    gap: 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    margin-top: 12px;
+    animation: fadeIn 0.2s ease;
+  }
+  
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .tubelight-mobile-link {
+    font-family: var(--font-heading);
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    padding: 8px 0;
+    text-align: center;
+    cursor: pointer;
+  }
+  
+  .tubelight-mobile-link.active {
+    color: var(--accent-cyan);
+    text-shadow: 0 0 10px rgba(6, 182, 212, 0.3);
+  }
+
+  .tubelight-mobile-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+    margin-top: 8px;
+  }
+
+  .responsive-grid-card {
+    grid-template-columns: 1fr !important;
+    gap: 20px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .responsive-container {
+    padding-top: 130px;
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+
+  .tubelight-nav {
+    padding: 12px 16px;
+  }
+  
+  .btn-primary, .btn-secondary {
+    padding: 10px 20px;
+    font-size: 0.88rem;
+  }
+}
+
+/* Modals & Popups responsiveness */
+.responsive-modal-body {
+  max-height: 70vh;
+  overflow-y: auto;
+  padding-right: 8px;
+}
+
+/* MCQ Options layout */
+.mcq-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  padding-left: 14px;
+  margin-top: 8px;
+}
+
+@media (max-width: 550px) {
+  .mcq-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* Student sheet blanks layout */
+.student-header-blanks {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 16px;
+  font-size: 0.85rem;
+  border-top: 1px solid #e2e8f0;
+  padding-top: 12px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+@media (max-width: 600px) {
+  .student-header-blanks {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .student-header-blanks span {
+    width: 100%;
+  }
+}
+
+/* Password Strength Indicator Widget checklist */
+.pwd-checklist {
+  list-style: none;
+  padding: 0;
+  margin: 10px 0 0 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 4px;
+}
+
+.pwd-checklist-item {
+  font-size: 0.72rem;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+  transition: var(--transition-smooth);
+}
+
+.pwd-checklist-item.passed {
+  color: #34d399;
+}
+
+.pwd-checklist-item.failed {
+  color: #fca5a5;
+}

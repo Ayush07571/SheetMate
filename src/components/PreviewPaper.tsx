@@ -9,6 +9,7 @@ interface PreviewPaperProps {
   subject: string;
   topicName: string;
   difficulty: string;
+  studentName?: string | null;
 }
 
 export default function PreviewPaper({
@@ -16,7 +17,8 @@ export default function PreviewPaper({
   grade,
   subject,
   topicName,
-  difficulty
+  difficulty,
+  studentName
 }: PreviewPaperProps) {
   const paperRef = useRef<HTMLDivElement>(null);
 
@@ -135,7 +137,7 @@ export default function PreviewPaper({
             top: "50%",
             left: "50%",
             transform: "translate(-50%, -50%) rotate(-45deg)",
-            fontSize: "2.4rem",
+            fontSize: studentName ? "1.6rem" : "2.4rem",
             fontWeight: 800,
             color: "rgba(79, 70, 229, 0.04)",
             pointerEvents: "none",
@@ -143,7 +145,7 @@ export default function PreviewPaper({
             userSelect: "none"
           }}
         >
-          SheetMate.in
+          {studentName ? `${studentName}'s Sheet` : "SheetMate.in"}
         </div>
 
         {/* Paper Header block */}
@@ -152,6 +154,15 @@ export default function PreviewPaper({
             <span style={{ fontSize: "0.6rem", fontWeight: 700, color: "#4f46e5", background: "#e0e7ff", padding: "2px 6px", borderRadius: "4px" }}>
               {board}
             </span>
+            {studentName ? (
+              <span style={{ fontSize: "0.55rem", fontWeight: 700, color: "#10b981", background: "#d1fae5", padding: "2px 6px", borderRadius: "4px" }}>
+                PRO / ADAPTIVE
+              </span>
+            ) : (
+              <span style={{ fontSize: "0.55rem", fontWeight: 700, color: "#475569", background: "#f1f5f9", padding: "2px 6px", borderRadius: "4px" }}>
+                GUEST PREVIEW
+              </span>
+            )}
             <span style={{ fontSize: "0.65rem", fontWeight: 600, color: "#475569" }}>
               Grade: {grade}
             </span>
@@ -163,7 +174,9 @@ export default function PreviewPaper({
             Topic: {topicName || "Select a Topic"}
           </p>
           <div style={{ display: "flex", gap: "10px", fontSize: "0.65rem", color: "#64748b", marginTop: "8px", borderTop: "1px solid #f1f5f9", paddingTop: "8px" }}>
-            <span>Name: _________________</span>
+            <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "160px" }}>
+              Name: {studentName ? <strong style={{ color: "#000" }}>{studentName}</strong> : "_______________"}
+            </span>
             <span>Date: _________</span>
           </div>
         </div>

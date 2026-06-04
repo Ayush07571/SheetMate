@@ -27,6 +27,7 @@ model StudentProfile {
   parentEmail String?
   parentPhone String?
   studentPhone String?
+  username    String?              @unique
   password    String               @default("")
   worksheets  GeneratedWorksheet[]
   weaknesses  WeaknessLog[]

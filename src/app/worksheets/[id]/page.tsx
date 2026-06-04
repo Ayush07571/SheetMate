@@ -65,6 +65,7 @@ export default function WorksheetPage() {
   const [showSolutions, setShowSolutions] = useState(false);
   const [answerKeyIncluded, setAnswerKeyIncluded] = useState(true);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [downloadingMsg, setDownloadingMsg] = useState<string | null>(null);
 
   const handleToggleSolutions = () => {
     if (!worksheet?.studentProfileId) {
@@ -97,23 +98,77 @@ export default function WorksheetPage() {
     loadWorksheet();
   }, [id]);
 
-  const handlePrintWorksheet = () => {
+  const downloadPDF = (showSolutionsValue: boolean, filename: string) => {
+    setDownloadingMsg(showSolutionsValue ? "Generating Solutions PDF..." : "Generating Worksheet PDF...");
     const prevShow = showSolutions;
-    setShowSolutions(false);
+    setShowSolutions(showSolutionsValue);
+
     setTimeout(() => {
-      window.print();
-      setTimeout(() => {
+      const element = document.querySelector(".printable-sheet");
+      if (!element) {
+        setDownloadingMsg(null);
         setShowSolutions(prevShow);
-      }, 500);
-    }, 150);
+        return;
+      }
+
+      const script = document.createElement("script");
+      script.src = "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js";
+      script.onload = () => {
+        // @ts-ignore
+        const html2pdf = window.html2pdf;
+        const opt = {
+          margin:       [0.4, 0.4, 0.4, 0.4],
+          filename:     filename,
+          image:        { type: "jpeg", quality: 0.98 },
+          html2canvas:  { scale: 2, useCORS: true, logging: false },
+          jsPDF:        { unit: "in", format: "a4", orientation: "portrait" }
+        };
+
+        const cloned = element.cloneNode(true) as HTMLElement;
+        cloned.style.boxShadow = "none";
+        cloned.style.borderRadius = "0";
+        cloned.style.border = "none";
+        cloned.style.padding = "20px";
+        cloned.style.background = "#fff";
+        cloned.style.color = "#000";
+        cloned.style.width = "100%";
+        cloned.style.maxWidth = "750px";
+
+        cloned.querySelectorAll("*").forEach(el => {
+          (el as HTMLElement).style.color = "#000";
+        });
+
+        html2pdf()
+          .set(opt)
+          .from(cloned)
+          .save()
+          .then(() => {
+            setDownloadingMsg(null);
+            setShowSolutions(prevShow);
+          })
+          .catch((err: any) => {
+            console.error("PDF generation failed:", err);
+            setDownloadingMsg(null);
+            setShowSolutions(prevShow);
+            alert("Failed to download PDF. Please try again.");
+          });
+      };
+      script.onerror = () => {
+        setDownloadingMsg(null);
+        setShowSolutions(prevShow);
+        alert("Failed to load PDF generator. Please try standard print (Ctrl+P).");
+      };
+      document.body.appendChild(script);
+    }, 200);
+  };
+
+  const handlePrintWorksheet = () => {
+    downloadPDF(false, `SheetMate_Worksheet_${data.grade.replace(/\s+/g, "_")}_${data.subject}.pdf`);
   };
 
   const handlePrintSolutions = () => {
     if (!worksheet?.studentProfileId) return;
-    setShowSolutions(true);
-    setTimeout(() => {
-      window.print();
-    }, 150);
+    downloadPDF(true, `SheetMate_Solutions_${data.grade.replace(/\s+/g, "_")}_${data.subject}.pdf`);
   };
 
   if (loading) {
@@ -226,10 +281,10 @@ export default function WorksheetPage() {
             </p>
             
             {/* Blanks for Student Details */}
-            <div style={{ display: "flex", justifyContent: "space-between", marginTop: "16px", fontSize: "0.85rem", borderTop: "1px solid #e2e8f0", paddingTop: "12px" }}>
+            <div className="student-header-blanks">
               <span>Student Name: ________________________________</span>
               <span>Date: ________________</span>
-              <span style={{ border: "2px solid #000", padding: "4px 12px", fontWeight: 700, borderRadius: "4px" }}>
+              <span style={{ border: "2px solid #000", padding: "4px 12px", fontWeight: 700, borderRadius: "4px", display: "inline-block", textAlign: "center" }}>
                 Score: {worksheet.score !== null ? `${worksheet.score} / ${worksheet.totalMarks}` : "   / " + worksheet.totalMarks}
               </span>
             </div>
@@ -303,7 +358,7 @@ export default function WorksheetPage() {
                       </p>
                       
                       {q.type === "MCQ" && q.options && (
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", paddingLeft: "14px", marginTop: "8px" }}>
+                        <div className="mcq-grid">
                           {q.options?.map((opt, oIdx) => (
                             <div key={oIdx}>
                               {String.fromCharCode(97 + oIdx)}) {opt}
@@ -397,6 +452,11 @@ export default function WorksheetPage() {
       
       {/* Dynamic inline styles to hide interface elements on printing */}
       <style jsx global>{`
+        @media (max-width: 600px) {
+          .printable-sheet {
+            padding: 20px 14px !important;
+          }
+        }
         @media print {
           body {
             background: #fff !important;
@@ -469,6 +529,46 @@ export default function WorksheetPage() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Downloading Overlay */}
+      {downloadingMsg && (
+        <div style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: "rgba(10, 10, 15, 0.85)",
+          zIndex: 10000,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: "16px",
+          backdropFilter: "blur(4px)"
+        }}>
+          <div style={{
+            width: "50px",
+            height: "50px",
+            border: "4px solid rgba(124, 58, 237, 0.2)",
+            borderTop: "4px solid var(--accent-purple)",
+            borderRadius: "50%",
+            animation: "spin 1s linear infinite"
+          }} />
+          <style dangerouslySetInnerHTML={{ __html: `
+            @keyframes spin {
+              0% { transform: rotate(0deg); }
+              100% { transform: rotate(360deg); }
+            }
+          `}} />
+          <span style={{ fontSize: "1.1rem", fontWeight: 600, color: "var(--text-primary)" }}>
+            {downloadingMsg}
+          </span>
+          <span style={{ fontSize: "0.85rem", color: "var(--text-secondary)" }}>
+            Creating high-quality pages, please wait...
+          </span>
         </div>
       )}
     </main>
