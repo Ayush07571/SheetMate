@@ -9,7 +9,7 @@ export async function POST(
   try {
     const { id } = await params;
     const body = await req.json();
-    const { score, incorrectQuestions } = body;
+    const { score, incorrectQuestions, correctQuestions } = body;
 
     if (score === undefined || score === null) {
       return NextResponse.json({ error: "Missing score parameter" }, { status: 400 });
@@ -47,34 +47,63 @@ export async function POST(
     });
 
     // 3. If registered profile, update the WeaknessLog
-    if (worksheet.studentProfileId && incorrectQuestions && Array.isArray(incorrectQuestions)) {
+    if (worksheet.studentProfileId) {
       const studentProfileId = worksheet.studentProfileId;
       const subject = worksheet.subject;
       const topic = worksheet.topic;
 
-      for (const question of incorrectQuestions) {
-        const { subtopic } = question;
-        if (!subtopic) continue;
+      if (incorrectQuestions && Array.isArray(incorrectQuestions)) {
+        for (const question of incorrectQuestions) {
+          const { subtopic } = question;
+          if (!subtopic) continue;
 
-        // Upsert weakness log: increment errorCount on hit, or create new log
-        await prisma.weaknessLog.upsert({
-          where: {
-            id: await findWeaknessLogId(studentProfileId, subject, topic, subtopic) || "non-existent-uuid"
-          },
-          update: {
-            errorCount: { increment: 1 },
-            lastTestedAt: new Date()
-          },
-          create: {
-            studentProfileId,
-            subject,
-            topic,
-            subtopic,
-            errorCount: 1,
-            successCount: 0,
-            lastTestedAt: new Date()
-          }
-        });
+          // Upsert weakness log: increment errorCount on hit, or create new log
+          await prisma.weaknessLog.upsert({
+            where: {
+              id: await findWeaknessLogId(studentProfileId, subject, topic, subtopic) || "non-existent-uuid"
+            },
+            update: {
+              errorCount: { increment: 1 },
+              lastTestedAt: new Date()
+            },
+            create: {
+              studentProfileId,
+              subject,
+              topic,
+              subtopic,
+              errorCount: 1,
+              successCount: 0,
+              lastTestedAt: new Date()
+            }
+          });
+        }
+      }
+
+      if (correctQuestions && Array.isArray(correctQuestions)) {
+        for (const question of correctQuestions) {
+          const { subtopic } = question;
+          if (!subtopic) continue;
+
+          // Upsert weakness log: increment successCount on hit, or create new log
+          await prisma.weaknessLog.upsert({
+            where: {
+              id: await findWeaknessLogId(studentProfileId, subject, topic, subtopic) || "non-existent-uuid"
+            },
+            update: {
+              successCount: { increment: 1 },
+              lastTestedAt: new Date()
+            },
+            create: {
+              studentProfileId,
+              subject,
+              topic,
+              subtopic,
+              errorCount: 0,
+              successCount: 1,
+              lastTestedAt: new Date()
+            }
+          });
+        }
       }
     }
 

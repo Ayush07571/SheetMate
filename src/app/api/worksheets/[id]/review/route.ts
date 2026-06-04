@@ -133,16 +133,15 @@ SCHEMA:
       }
     });
 
-    // 7. Log Weaknesses for Incorrect Answers (if student is registered)
+    // 7. Log Concept Performance (if student is registered)
     if (worksheet.studentProfileId && feedback && Array.isArray(feedback)) {
       const studentProfileId = worksheet.studentProfileId;
       const subject = worksheet.subject;
       const topic = worksheet.topic;
 
       for (const item of feedback) {
+        const subtopicName = getQuestionSubtopic(item.questionId, worksheetContent, topic, isEarly);
         if (item.status === "INCORRECT") {
-          const subtopicName = getQuestionSubtopic(item.questionId, worksheetContent, topic, isEarly);
-          
           await prisma.weaknessLog.upsert({
             where: {
               id: await findWeaknessLogId(studentProfileId, subject, topic, subtopicName) || "non-existent-uuid"
@@ -158,6 +157,25 @@ SCHEMA:
               subtopic: subtopicName,
               errorCount: 1,
               successCount: 0,
+              lastTestedAt: new Date()
+            }
+          });
+        } else {
+          await prisma.weaknessLog.upsert({
+            where: {
+              id: await findWeaknessLogId(studentProfileId, subject, topic, subtopicName) || "non-existent-uuid"
+            },
+            update: {
+              successCount: { increment: 1 },
+              lastTestedAt: new Date()
+            },
+            create: {
+              studentProfileId,
+              subject,
+              topic,
+              subtopic: subtopicName,
+              errorCount: 0,
+              successCount: 1,
               lastTestedAt: new Date()
             }
           });

@@ -33,6 +33,8 @@ interface Profile {
   parentPin: string;
   parentEmail?: string | null;
   parentPhone?: string | null;
+  studentPhone?: string | null;
+  password?: string;
 }
 
 export default function DashboardPage() {
@@ -50,6 +52,16 @@ export default function DashboardPage() {
   const [authMode, setAuthMode] = useState<"signin" | "signup">("signin");
   const [existingProfiles, setExistingProfiles] = useState<Profile[]>([]);
   const [loadingProfiles, setLoadingProfiles] = useState(false);
+  const [parentContactInput, setParentContactInput] = useState("");
+  const [hasSearchedProfiles, setHasSearchedProfiles] = useState(false);
+
+  // Profile Login Password verification states
+  const [selectedProfileForLogin, setSelectedProfileForLogin] = useState<Profile | null>(null);
+  const [loginPassword, setLoginPassword] = useState("");
+  const [loginError, setLoginError] = useState<string | null>(null);
+  const [loggingIn, setLoggingIn] = useState(false);
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
+  const [showRegPassword, setShowRegPassword] = useState(false);
 
   // Registration form states
   const [regName, setRegName] = useState("");
@@ -58,6 +70,8 @@ export default function DashboardPage() {
   const [regPin, setRegPin] = useState("");
   const [regParentEmail, setRegParentEmail] = useState("");
   const [regParentPhone, setRegParentPhone] = useState("");
+  const [regStudentPhone, setRegStudentPhone] = useState("");
+  const [regPassword, setRegPassword] = useState("");
   const [submittingReg, setSubmittingReg] = useState(false);
 
   // Edit parent details & verification states
@@ -96,6 +110,7 @@ export default function DashboardPage() {
   const [submittingGrade, setSubmittingGrade] = useState(false);
   const [pendingGradingWorksheetId, setPendingGradingWorksheetId] = useState<string | null>(null);
   const [pendingEditProfile, setPendingEditProfile] = useState(false);
+  const [hoveredProgressPoint, setHoveredProgressPoint] = useState<any>(null);
 
   // AI PDF Review states
   const [gradingMode, setGradingMode] = useState<"manual" | "ai">("manual");
@@ -129,6 +144,9 @@ export default function DashboardPage() {
   const [editName, setEditName] = useState("");
   const [editGrade, setEditGrade] = useState("Class 6");
   const [editBoard, setEditBoard] = useState("CBSE");
+  const [editStudentPhone, setEditStudentPhone] = useState("");
+  const [editPassword, setEditPassword] = useState("");
+  const [showEditPassword, setShowEditPassword] = useState(false);
   const [submittingEdit, setSubmittingEdit] = useState(false);
 
   // Read local ID on mount
@@ -148,31 +166,72 @@ export default function DashboardPage() {
     }
   }, []);
 
-  // Reset payment states when switching auth mode
+  // Reset states when switching auth mode
   useEffect(() => {
     setSignupStep("details");
+    setParentContactInput("");
+    setExistingProfiles([]);
+    setHasSearchedProfiles(false);
+    setError(null);
+    setRegPassword("");
+    setShowRegPassword(false);
+    setShowLoginPassword(false);
   }, [authMode]);
 
-  // Fetch active profiles for Sign-In list
-  useEffect(() => {
-    if (profileId || authMode !== "signin") return;
-
-    async function loadProfilesList() {
-      try {
-        setLoadingProfiles(true);
-        const res = await fetch("/api/student/profiles");
-        if (res.ok) {
-          const data = await res.json();
-          setExistingProfiles(data);
-        }
-      } catch (err) {
-        console.error("Failed to load profiles:", err);
-      } finally {
-        setLoadingProfiles(false);
-      }
+  const getPasswordStrength = (pwd: string): { score: number; label: string; color: string } => {
+    if (!pwd) return { score: 0, label: "", color: "transparent" };
+    if (pwd.length < 6) return { score: 1, label: "Too short (min 6 chars)", color: "#ef4444" };
+    const hasLetter = /[a-zA-Z]/.test(pwd);
+    const hasNumber = /[0-9]/.test(pwd);
+    if (!hasLetter || !hasNumber) {
+      return { score: 2, label: "Weak (must contain letters & numbers)", color: "#f97316" };
     }
-    loadProfilesList();
-  }, [authMode, profileId]);
+    if (pwd.length >= 8) {
+      return { score: 4, label: "Strong", color: "#10b981" };
+    }
+    return { score: 3, label: "Good", color: "#3b82f6" };
+  };
+
+  const validatePasswordStrength = (pwd: string): string | null => {
+    if (pwd.length < 6) {
+      return "Password must be at least 6 characters long.";
+    }
+    const hasLetter = /[a-zA-Z]/.test(pwd);
+    const hasNumber = /[0-9]/.test(pwd);
+    if (!hasLetter || !hasNumber) {
+      return "Password must contain both letters and numbers.";
+    }
+    return null;
+  };
+
+  // Handle manual searching of student profiles using parent contact info
+  const handleSearchProfiles = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const query = parentContactInput.trim();
+    if (!query) return;
+
+    try {
+      setLoadingProfiles(true);
+      setHasSearchedProfiles(true);
+      setError(null);
+      const res = await fetch(`/api/student/profiles?contact=${encodeURIComponent(query)}&password=${encodeURIComponent(loginPassword)}`);
+      if (res.ok) {
+        const data = await res.json();
+        setExistingProfiles(data);
+        if (data.length === 1) {
+          // If exactly one child profile matches, log in directly!
+          selectProfile(data[0].id);
+        }
+      } else {
+        setExistingProfiles([]);
+      }
+    } catch (err) {
+      console.error("Failed to search profiles:", err);
+      setExistingProfiles([]);
+    } finally {
+      setLoadingProfiles(false);
+    }
+  };
 
   // Fetch dashboard metrics when profileId is set
   useEffect(() => {
@@ -202,6 +261,12 @@ export default function DashboardPage() {
     e.preventDefault();
     if (!regName.trim()) return;
 
+    const pwdError = validatePasswordStrength(regPassword);
+    if (pwdError) {
+      setError(pwdError);
+      return;
+    }
+
     setSubmittingReg(true);
     setError(null);
 
@@ -215,7 +280,9 @@ export default function DashboardPage() {
           board: "CBSE",
           parentPin: "0000",
           parentEmail: regParentEmail || null,
-          parentPhone: regParentPhone || null
+          parentPhone: regParentPhone || null,
+          studentPhone: regStudentPhone || null,
+          password: regPassword
         })
       });
 
@@ -237,6 +304,41 @@ export default function DashboardPage() {
   const selectProfile = (pId: string) => {
     localStorage.setItem("sheetmate_profile_id", pId);
     setProfileId(pId);
+  };
+
+  const handlePasswordLoginSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedProfileForLogin) return;
+
+    try {
+      setLoggingIn(true);
+      setLoginError(null);
+
+      const res = await fetch("/api/student/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          profileId: selectedProfileForLogin.id,
+          password: loginPassword
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Incorrect password");
+      }
+
+      // Successful login
+      localStorage.setItem("sheetmate_profile_id", selectedProfileForLogin.id);
+      setProfileId(selectedProfileForLogin.id);
+      setSelectedProfileForLogin(null);
+      setLoginPassword("");
+      setLoginError(null);
+    } catch (err) {
+      setLoginError((err as Error).message || "Verification failed");
+    } finally {
+      setLoggingIn(false);
+    }
   };
 
   const handlePinSubmit = (e: React.FormEvent) => {
@@ -499,6 +601,7 @@ export default function DashboardPage() {
       const computedScore = getCalculatedScore();
 
       const incorrectQuestions: { subtopic: string }[] = [];
+      const correctQuestions: { subtopic: string }[] = [];
 
       if (isEarly) {
         const activities = gradingWorksheetData.data?.activities || [];
@@ -510,12 +613,16 @@ export default function DashboardPage() {
             act.items.forEach((_: any, qIdx: number) => {
               if (graderScores[`act_${actIdx}_q_${qIdx}`] === false) {
                 incorrectQuestions.push({ subtopic: subtopicName });
+              } else {
+                correctQuestions.push({ subtopic: subtopicName });
               }
             });
           } else if (act.questions) {
             act.questions.forEach((_: any, qIdx: number) => {
               if (graderScores[`act_${actIdx}_q_${qIdx}`] === false) {
                 incorrectQuestions.push({ subtopic: subtopicName });
+              } else {
+                correctQuestions.push({ subtopic: subtopicName });
               }
             });
           }
@@ -529,6 +636,10 @@ export default function DashboardPage() {
                 incorrectQuestions.push({
                   subtopic: q.subtopic || gradingWorksheetData.topic
                 });
+              } else {
+                correctQuestions.push({
+                  subtopic: q.subtopic || gradingWorksheetData.topic
+                });
               }
             });
           }
@@ -540,7 +651,8 @@ export default function DashboardPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           score: computedScore,
-          incorrectQuestions
+          incorrectQuestions,
+          correctQuestions
         })
       });
 
@@ -570,12 +682,14 @@ export default function DashboardPage() {
   const handleProfileReset = () => {
     if (confirm("Are you sure you want to log out and switch student profiles? Your history remains saved under your profile key.")) {
       localStorage.removeItem("sheetmate_profile_id");
+      localStorage.setItem("sheetmate_show_logout_toast", "true");
       setProfileId(null);
       setProfile(null);
       setWorksheets([]);
       setWeaknesses([]);
       setParentUnlocked(false);
       setAuthMode("signin");
+      router.push("/");
     }
   };
 
@@ -586,6 +700,8 @@ export default function DashboardPage() {
     setEditBoard(profile.board);
     setEditParentEmail(profile.parentEmail || "");
     setEditParentPhone(profile.parentPhone || "");
+    setEditStudentPhone(profile.studentPhone || "");
+    setEditPassword(profile.password || "");
     setShowEditModal(true);
     // Reset OTP verification states for profile edits
     setShowEditOtpVerify(false);
@@ -598,6 +714,12 @@ export default function DashboardPage() {
   const handleEditSubmit = async (e: React.FormEvent, bypassOtp = false) => {
     e.preventDefault();
     if (!profileId || !profile || !editName.trim()) return;
+
+    const pwdError = validatePasswordStrength(editPassword);
+    if (pwdError) {
+      alert(pwdError);
+      return;
+    }
 
     // Check if parent contact details have changed
     const emailChanged = editParentEmail !== (profile.parentEmail || "");
@@ -626,7 +748,9 @@ export default function DashboardPage() {
           board: "CBSE",
           parentPin: profile.parentPin,
           parentEmail: editParentEmail || null,
-          parentPhone: editParentPhone || null
+          parentPhone: editParentPhone || null,
+          studentPhone: editStudentPhone || null,
+          password: editPassword
         })
       });
 
@@ -641,7 +765,9 @@ export default function DashboardPage() {
         grade: editGrade,
         board: "CBSE",
         parentEmail: editParentEmail || null,
-        parentPhone: editParentPhone || null
+        parentPhone: editParentPhone || null,
+        studentPhone: editStudentPhone || null,
+        password: editPassword
       } : null);
 
       setShowEditModal(false);
@@ -728,13 +854,108 @@ export default function DashboardPage() {
             </p>
 
             {authMode === "signin" ? (
-              // SIGN IN: Netflix-style clickable profiles list
+              // SIGN IN: Secure Search & Selection Flow
               <div>
+                <form onSubmit={handleSearchProfiles} style={{ marginBottom: "24px" }}>
+                  <div className="form-group" style={{ marginBottom: "16px" }}>
+                    <label className="form-label" style={{ display: "block", marginBottom: "8px", fontSize: "0.9rem" }}>
+                      Student Mobile Number
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. +91 98765 43210"
+                      className="form-input"
+                      value={parentContactInput}
+                      onChange={e => setParentContactInput(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="form-group" style={{ marginBottom: "24px" }}>
+                    <label className="form-label" style={{ display: "block", marginBottom: "8px", fontSize: "0.9rem" }}>
+                      Profile Password
+                    </label>
+                    <div style={{ position: "relative" }}>
+                      <input
+                        type={showLoginPassword ? "text" : "password"}
+                        required
+                        placeholder="••••••••"
+                        className="form-input"
+                        style={{ paddingRight: "50px" }}
+                        value={loginPassword}
+                        onChange={e => setLoginPassword(e.target.value)}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowLoginPassword(!showLoginPassword)}
+                        style={{
+                          position: "absolute",
+                          right: "10px",
+                          top: "50%",
+                          transform: "translateY(-50%)",
+                          background: "none",
+                          border: "none",
+                          color: "var(--accent-purple)",
+                          cursor: "pointer",
+                          fontSize: "0.8rem",
+                          fontWeight: 600
+                        }}
+                      >
+                        {showLoginPassword ? "Hide" : "Show"}
+                      </button>
+                    </div>
+                  </div>
+
+                  {error && (
+                    <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid #ef4444", padding: "12px", borderRadius: "6px", color: "#fca5a5", fontSize: "0.85rem", marginBottom: "20px" }}>
+                      {error}
+                    </div>
+                  )}
+
+                  <button type="submit" className="btn-primary" style={{ width: "100%", padding: "12px", fontSize: "0.95rem" }} disabled={loadingProfiles}>
+                    {loadingProfiles ? "Signing In..." : "Sign In & Find Profiles"}
+                  </button>
+                </form>
+
                 {loadingProfiles ? (
                   <p style={{ textAlign: "center", color: "var(--text-muted)", padding: "20px" }}>Loading profiles...</p>
+                ) : !hasSearchedProfiles ? (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "14px", marginBottom: "24px" }}>
+                    <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", textAlign: "center", marginBottom: "12px" }}>
+                      Please enter your student mobile number and password to retrieve and access your profiles.
+                    </p>
+                    {/* Guest Selection Card */}
+                    <div
+                      onClick={() => {
+                        localStorage.removeItem("sheetmate_profile_id");
+                        localStorage.setItem("sheetmate_show_logout_toast", "true");
+                        router.push("/");
+                      }}
+                      style={{
+                        background: "rgba(6, 182, 212, 0.04)",
+                        border: "1px dashed rgba(6, 182, 212, 0.4)",
+                        borderRadius: "8px",
+                        padding: "16px",
+                        cursor: "pointer",
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        transition: "var(--transition-smooth)"
+                      }}
+                      className="selection-card"
+                    >
+                      <div style={{ textAlign: "left" }}>
+                        <h4 style={{ fontWeight: 700, color: "var(--accent-cyan)" }}>Practice as Guest</h4>
+                        <p style={{ fontSize: "0.75rem", color: "var(--text-secondary)", marginTop: "2px" }}>
+                          Generate one-off worksheets for others
+                        </p>
+                      </div>
+                      <span style={{ color: "var(--accent-cyan)", fontWeight: 600, fontSize: "0.85rem" }}>Enter &rarr;</span>
+                    </div>
+                  </div>
                 ) : existingProfiles.length === 0 ? (
-                  <div style={{ textAlign: "center", padding: "20px 0" }}>
-                    <p style={{ color: "var(--text-secondary)", fontSize: "0.95rem" }}>No profiles found in the database yet.</p>
+                  <div style={{ textAlign: "center", padding: "20px 0", marginBottom: "24px" }}>
+                    <p style={{ color: "var(--text-secondary)", fontSize: "0.95rem" }}>No profiles found for these contact and password details.</p>
                     <button 
                       type="button" 
                       className="btn-primary" 
@@ -746,6 +967,9 @@ export default function DashboardPage() {
                   </div>
                 ) : (
                   <div style={{ display: "flex", flexDirection: "column", gap: "12px", maxHeight: "300px", overflowY: "auto", paddingRight: "8px", marginBottom: "24px" }}>
+                    <p style={{ color: "var(--text-secondary)", fontSize: "0.85rem", marginBottom: "8px" }}>
+                      Select a profile to continue:
+                    </p>
                     {existingProfiles.map(p => (
                       <div
                         key={p.id}
@@ -777,6 +1001,7 @@ export default function DashboardPage() {
                     <div
                       onClick={() => {
                         localStorage.removeItem("sheetmate_profile_id");
+                        localStorage.setItem("sheetmate_show_logout_toast", "true");
                         router.push("/");
                       }}
                       style={{
@@ -803,19 +1028,17 @@ export default function DashboardPage() {
                   </div>
                 )}
 
-                {existingProfiles.length > 0 && (
-                  <div style={{ textAlign: "center", borderTop: "1px solid var(--border-glow)", paddingTop: "20px" }}>
-                    <p style={{ fontSize: "0.85rem", color: "var(--text-secondary)" }}>
-                      Need to add a child?{" "}
-                      <span 
-                        onClick={() => setAuthMode("signup")} 
-                        style={{ color: "#a78bfa", cursor: "pointer", fontWeight: 600 }}
-                      >
-                        Create Profile
-                      </span>
-                    </p>
-                  </div>
-                )}
+                <div style={{ textAlign: "center", borderTop: "1px solid var(--border-glow)", paddingTop: "20px" }}>
+                  <p style={{ fontSize: "0.85rem", color: "var(--text-secondary)" }}>
+                    Need to add a child?{" "}
+                    <span 
+                      onClick={() => setAuthMode("signup")} 
+                      style={{ color: "#a78bfa", cursor: "pointer", fontWeight: 600 }}
+                    >
+                      Create Profile
+                    </span>
+                  </p>
+                </div>
               </div>
             ) : (
               // SIGN UP: Two column split showing perks on left, form on right
@@ -862,7 +1085,17 @@ export default function DashboardPage() {
                 {/* Right Column: Form */}
                 <div>
                   {signupStep === "details" ? (
-                    <form onSubmit={(e) => { e.preventDefault(); if (regName.trim()) setSignupStep("payment"); }}>
+                    <form onSubmit={(e) => {
+                      e.preventDefault();
+                      if (!regName.trim()) return;
+                      const pwdError = validatePasswordStrength(regPassword);
+                      if (pwdError) {
+                        setError(pwdError);
+                        return;
+                      }
+                      setError(null);
+                      setSignupStep("payment");
+                    }}>
                       <div className="form-group">
                         <label className="form-label">Student Name</label>
                         <input
@@ -887,6 +1120,70 @@ export default function DashboardPage() {
                       <div className="form-group">
                         <label className="form-label">School Board</label>
                         <input type="text" className="form-input" value="CBSE (fixed for MVP)" disabled style={{ opacity: 0.7 }} />
+                      </div>
+
+                      <div className="form-group" style={{ marginBottom: "20px" }}>
+                        <label className="form-label">Student Mobile Number (for Login)</label>
+                        <input
+                          type="tel"
+                          required
+                          placeholder="e.g. +91 98765 43210"
+                          className="form-input"
+                          value={regStudentPhone}
+                          onChange={e => setRegStudentPhone(e.target.value)}
+                        />
+                      </div>
+
+                      <div className="form-group" style={{ marginBottom: "20px" }}>
+                        <label className="form-label">Profile Password (minimum 6 alphanumeric characters)</label>
+                        <div style={{ position: "relative" }}>
+                          <input
+                            type={showRegPassword ? "text" : "password"}
+                            required
+                            placeholder="Create a strong password"
+                            className="form-input"
+                            style={{ paddingRight: "50px" }}
+                            value={regPassword}
+                            onChange={e => setRegPassword(e.target.value)}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowRegPassword(!showRegPassword)}
+                            style={{
+                              position: "absolute",
+                              right: "10px",
+                              top: "50%",
+                              transform: "translateY(-50%)",
+                              background: "none",
+                              border: "none",
+                              color: "var(--accent-purple)",
+                              cursor: "pointer",
+                              fontSize: "0.8rem",
+                              fontWeight: 600
+                            }}
+                          >
+                            {showRegPassword ? "Hide" : "Show"}
+                          </button>
+                        </div>
+                        {regPassword && (() => {
+                          const strength = getPasswordStrength(regPassword);
+                          return (
+                            <div style={{ marginTop: "8px" }}>
+                              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.75rem", marginBottom: "4px" }}>
+                                <span style={{ color: "var(--text-secondary)" }}>Password Strength:</span>
+                                <span style={{ color: strength.color, fontWeight: 700 }}>{strength.label}</span>
+                              </div>
+                              <div style={{ width: "100%", height: "4px", background: "rgba(255,255,255,0.05)", borderRadius: "2px", overflow: "hidden" }}>
+                                <div style={{
+                                  width: `${(strength.score / 4) * 100}%`,
+                                  height: "100%",
+                                  background: strength.color,
+                                  transition: "width 0.3s ease"
+                                }} />
+                              </div>
+                            </div>
+                          );
+                        })()}
                       </div>
 
                       <div style={{ padding: "16px 0", borderTop: "1px solid rgba(255,255,255,0.06)", marginTop: "16px" }}>
@@ -954,6 +1251,12 @@ export default function DashboardPage() {
                           </div>
                         </div>
                       </div>
+
+                      {error && (
+                        <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid #ef4444", padding: "12px", borderRadius: "6px", color: "#fca5a5", fontSize: "0.85rem", marginBottom: "20px" }}>
+                          {error}
+                        </div>
+                      )}
 
                       <button type="submit" className="btn-primary" style={{ width: "100%" }}>
                         Continue to Payment &rarr;
@@ -1079,9 +1382,84 @@ export default function DashboardPage() {
             </p>
           </div>
         </div>
+
+
       </main>
     );
   }
+
+  // Analytics calculations for Parent Dashboard
+  const totalWorksheetsCount = worksheets.length;
+  const gradedWorksheetsCount = worksheets.filter(ws => {
+    if (!ws.attemptsJson) return false;
+    try {
+      const arr = JSON.parse(ws.attemptsJson);
+      return Array.isArray(arr) && arr.length > 0;
+    } catch (_) {
+      return false;
+    }
+  }).length;
+  const gradingRatePercent = totalWorksheetsCount > 0 
+    ? Math.round((gradedWorksheetsCount / totalWorksheetsCount) * 100) 
+    : 0;
+
+  // Gather all attempts for progression chart & average score calculation
+  const allGradedAttempts: {
+    wsId: string;
+    topic: string;
+    score: number;
+    totalMarks: number;
+    percentage: number;
+    date: Date;
+    dateStr: string;
+  }[] = [];
+
+  worksheets.forEach(ws => {
+    if (ws.attemptsJson) {
+      try {
+        const arr = JSON.parse(ws.attemptsJson);
+        if (Array.isArray(arr)) {
+          arr.forEach((att: any) => {
+            const score = typeof att.score === "number" ? att.score : (ws.score || 0);
+            const totalMarks = (typeof att.totalMarks === "number" ? att.totalMarks : ws.totalMarks) || 10;
+            const percentage = totalMarks > 0 ? Math.round((score / totalMarks) * 100) : 0;
+            const dateObj = att.date ? new Date(att.date) : new Date(ws.createdAt);
+            allGradedAttempts.push({
+              wsId: ws.id,
+              topic: ws.topic,
+              score,
+              totalMarks,
+              percentage,
+              date: dateObj,
+              dateStr: dateObj.toLocaleDateString(undefined, { month: "short", day: "numeric" })
+            });
+          });
+        }
+      } catch (_) {}
+    }
+  });
+
+  // Sort chronologically (oldest to newest)
+  allGradedAttempts.sort((a, b) => a.date.getTime() - b.date.getTime());
+
+  // Average score percent
+  const overallAverageScorePercent = allGradedAttempts.length > 0
+    ? Math.round(allGradedAttempts.reduce((sum, att) => sum + att.percentage, 0) / allGradedAttempts.length)
+    : 0;
+
+  // Concept masteries vs focus areas
+  // Strong: successCount > errorCount
+  // Weak: errorCount >= successCount && errorCount > 0
+  const strongConcepts = weaknesses.filter(w => w.successCount > w.errorCount);
+  const weakConcepts = weaknesses.filter(w => w.errorCount >= w.successCount && w.errorCount > 0);
+  
+  // Sort strong concepts by successCount descending
+  const sortedStrong = [...strongConcepts].sort((a, b) => b.successCount - a.successCount);
+  // Sort weak concepts by errorCount descending
+  const sortedWeak = [...weakConcepts].sort((a, b) => b.errorCount - a.errorCount);
+
+  // Take the last 10 attempts for the progression line chart
+  const last10Attempts = allGradedAttempts.slice(-10);
 
   return (
     <main style={{ minHeight: "100vh", padding: "20px" }}>
@@ -1164,6 +1542,369 @@ export default function DashboardPage() {
               >
                 Edit Profile
               </button>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Parent Analytics Dashboard */}
+      {parentUnlocked && (
+        <section
+          style={{
+            maxWidth: "1200px",
+            margin: "0 auto 40px auto",
+            display: "flex",
+            flexDirection: "column",
+            gap: "30px"
+          }}
+        >
+          <div className="glass-card" style={{ padding: "28px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid var(--border-glow)", paddingBottom: "16px", marginBottom: "24px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <span style={{ fontSize: "1.5rem" }}>📊</span>
+                <div>
+                  <h3 style={{ fontSize: "1.3rem", fontWeight: 700, margin: 0 }} className="gradient-accent-text">
+                    Parent Analytics Dashboard
+                  </h3>
+                  <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", margin: "2px 0 0 0" }}>
+                    Performance insights, learning curves, and topic mastery statistics.
+                  </p>
+                </div>
+              </div>
+              <span style={{ fontSize: "0.75rem", background: "rgba(16, 185, 129, 0.15)", color: "#10b981", padding: "4px 10px", borderRadius: "20px", border: "1px solid rgba(16, 185, 129, 0.3)" }}>
+                Active Session
+              </span>
+            </div>
+
+            {/* Row 1: KPI Cards */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "20px", marginBottom: "30px" }}>
+              {/* Card 1: Total Sheets */}
+              <div style={{ background: "rgba(255, 255, 255, 0.02)", border: "1px solid var(--border-glow)", borderRadius: "8px", padding: "20px", display: "flex", alignItems: "center", gap: "16px" }}>
+                <div style={{ width: "40px", height: "40px", borderRadius: "50%", background: "rgba(167, 139, 250, 0.1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.2rem", color: "var(--accent-purple)" }}>
+                  📄
+                </div>
+                <div>
+                  <p style={{ margin: 0, fontSize: "0.8rem", color: "var(--text-muted)" }}>Total Worksheets</p>
+                  <h4 style={{ margin: "4px 0 0 0", fontSize: "1.4rem", fontWeight: 700 }}>{totalWorksheetsCount}</h4>
+                </div>
+              </div>
+
+              {/* Card 2: Grading Rate */}
+              <div style={{ background: "rgba(255, 255, 255, 0.02)", border: "1px solid var(--border-glow)", borderRadius: "8px", padding: "20px", display: "flex", alignItems: "center", gap: "16px" }}>
+                <div style={{ width: "40px", height: "40px", borderRadius: "50%", background: "rgba(6, 182, 212, 0.1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.2rem", color: "var(--accent-cyan)" }}>
+                  ✅
+                </div>
+                <div>
+                  <p style={{ margin: 0, fontSize: "0.8rem", color: "var(--text-muted)" }}>Grading Rate</p>
+                  <h4 style={{ margin: "4px 0 0 0", fontSize: "1.4rem", fontWeight: 700 }}>
+                    {gradingRatePercent}% <span style={{ fontSize: "0.75rem", fontWeight: "normal", color: "var(--text-muted)" }}>({gradedWorksheetsCount}/{totalWorksheetsCount})</span>
+                  </h4>
+                </div>
+              </div>
+
+              {/* Card 3: Average Score */}
+              <div style={{ background: "rgba(255, 255, 255, 0.02)", border: "1px solid var(--border-glow)", borderRadius: "8px", padding: "20px", display: "flex", alignItems: "center", gap: "16px" }}>
+                <div style={{ width: "40px", height: "40px", borderRadius: "50%", background: "rgba(167, 139, 250, 0.1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.2rem", color: "var(--accent-purple)" }}>
+                  🎯
+                </div>
+                <div>
+                  <p style={{ margin: 0, fontSize: "0.8rem", color: "var(--text-muted)" }}>Average Score</p>
+                  <h4 style={{ margin: "4px 0 0 0", fontSize: "1.4rem", fontWeight: 700 }}>
+                    {allGradedAttempts.length > 0 ? `${overallAverageScorePercent}%` : "N/A"}
+                  </h4>
+                </div>
+              </div>
+
+              {/* Card 4: Mastery Status */}
+              <div style={{ background: "rgba(255, 255, 255, 0.02)", border: "1px solid var(--border-glow)", borderRadius: "8px", padding: "20px", display: "flex", alignItems: "center", gap: "16px" }}>
+                <div style={{ width: "40px", height: "40px", borderRadius: "50%", background: "rgba(16, 185, 129, 0.1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.2rem", color: "#10b981" }}>
+                  🏆
+                </div>
+                <div>
+                  <p style={{ margin: 0, fontSize: "0.8rem", color: "var(--text-muted)" }}>Mastery & Focus</p>
+                  <h4 style={{ margin: "4px 0 0 0", fontSize: "1.1rem", fontWeight: 700 }}>
+                    <span style={{ color: "#10b981" }}>{strongConcepts.length} Mastered</span>
+                    <span style={{ color: "var(--text-muted)", fontWeight: "normal" }}> / </span>
+                    <span style={{ color: "#f43f5e" }}>{weakConcepts.length} Weak</span>
+                  </h4>
+                </div>
+              </div>
+            </div>
+
+            {/* Row 2: Score Progression Chart */}
+            <div style={{ background: "rgba(255, 255, 255, 0.01)", border: "1px solid var(--border-glow)", borderRadius: "8px", padding: "24px", marginBottom: "30px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+                <h4 style={{ margin: 0, fontSize: "1.05rem", fontWeight: 600, color: "var(--text-primary)" }}>
+                  Score Progression Curve <span style={{ fontSize: "0.8rem", color: "var(--text-muted)", fontWeight: "normal" }}>(Last 10 Attempts)</span>
+                </h4>
+                {allGradedAttempts.length > 0 && (
+                  <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
+                    Hover points to view details
+                  </span>
+                )}
+              </div>
+
+              {allGradedAttempts.length === 0 ? (
+                <div style={{ textAlign: "center", padding: "40px 20px", color: "var(--text-muted)", background: "rgba(255, 255, 255, 0.01)", border: "1px dashed var(--border-glow)", borderRadius: "6px" }}>
+                  <p style={{ margin: 0, fontSize: "0.9rem" }}>No attempt history available to generate progression curve.</p>
+                  <p style={{ margin: "4px 0 0 0", fontSize: "0.75rem" }}>Ensure the student completes worksheets and their scores are saved.</p>
+                </div>
+              ) : (
+                <div style={{ position: "relative", width: "100%", overflowX: "auto" }}>
+                  <svg
+                    viewBox="0 0 600 220"
+                    width="100%"
+                    height="auto"
+                    style={{ minWidth: "550px", display: "block", overflow: "visible" }}
+                  >
+                    <defs>
+                      <linearGradient id="chart-fill-gradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="var(--accent-purple)" stopOpacity="0.3" />
+                        <stop offset="100%" stopColor="var(--accent-cyan)" stopOpacity="0.0" />
+                      </linearGradient>
+                      <linearGradient id="chart-line-gradient" x1="0" y1="0" x2="1" y2="0">
+                        <stop offset="0%" stopColor="var(--accent-purple)" />
+                        <stop offset="100%" stopColor="var(--accent-cyan)" />
+                      </linearGradient>
+                    </defs>
+
+                    {/* Gridlines */}
+                    {[0, 25, 50, 75, 100].map(pct => {
+                      const yVal = 25 + 155 - (pct * 155) / 100;
+                      return (
+                        <g key={pct}>
+                          <line
+                            x1="45"
+                            y1={yVal}
+                            x2="575"
+                            y2={yVal}
+                            stroke="rgba(255, 255, 255, 0.08)"
+                            strokeWidth="1"
+                            strokeDasharray="4,4"
+                          />
+                          <text
+                            x="35"
+                            y={yVal + 3}
+                            fill="var(--text-muted)"
+                            fontSize="10"
+                            textAnchor="end"
+                            fontFamily="monospace"
+                          >
+                            {pct}%
+                          </text>
+                        </g>
+                      );
+                    })}
+
+                    {/* Chart Paths */}
+                    {allGradedAttempts.length > 1 && (() => {
+                      const chartPoints = last10Attempts.map((att, idx) => {
+                        const xVal = 45 + (idx * 530) / (last10Attempts.length - 1);
+                        const yVal = 25 + 155 - (att.percentage * 155) / 100;
+                        return { x: xVal, y: yVal };
+                      });
+
+                      const pathLineString = chartPoints.map((pt, i) => `${i === 0 ? "M" : "L"} ${pt.x} ${pt.y}`).join(" ");
+                      const areaFillString = `${pathLineString} L ${chartPoints[chartPoints.length - 1].x} 180 L ${chartPoints[0].x} 180 Z`;
+
+                      return (
+                        <g>
+                          <path
+                            d={areaFillString}
+                            fill="url(#chart-fill-gradient)"
+                          />
+                          <path
+                            d={pathLineString}
+                            fill="none"
+                            stroke="url(#chart-line-gradient)"
+                            strokeWidth="3"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </g>
+                      );
+                    })()}
+
+                    {/* Data Points */}
+                    {last10Attempts.map((att, idx) => {
+                      const xVal = last10Attempts.length > 1
+                        ? 45 + (idx * 530) / (last10Attempts.length - 1)
+                        : 45 + 530 / 2;
+                      const yVal = 25 + 155 - (att.percentage * 155) / 100;
+
+                      const isHovered = hoveredProgressPoint && hoveredProgressPoint.wsId === att.wsId && hoveredProgressPoint.date === att.date;
+
+                      return (
+                        <g key={`${att.wsId}-${idx}`}>
+                          <circle
+                            cx={xVal}
+                            cy={yVal}
+                            r={isHovered ? 8 : 4}
+                            fill={isHovered ? "var(--accent-cyan)" : "url(#chart-line-gradient)"}
+                            stroke="#ffffff"
+                            strokeWidth={isHovered ? 2 : 1.5}
+                            style={{ transition: "all 0.15s ease", cursor: "pointer" }}
+                          />
+                          <circle
+                            cx={xVal}
+                            cy={yVal}
+                            r="16"
+                            fill="transparent"
+                            style={{ cursor: "pointer" }}
+                            onMouseEnter={() => setHoveredProgressPoint({ ...att, x: xVal, y: yVal })}
+                            onMouseLeave={() => setHoveredProgressPoint(null)}
+                          />
+                          <text
+                            x={xVal}
+                            y="198"
+                            fill="var(--text-muted)"
+                            fontSize="9"
+                            textAnchor="middle"
+                          >
+                            {att.dateStr}
+                          </text>
+                          <text
+                            x={xVal}
+                            y="209"
+                            fill="rgba(255, 255, 255, 0.25)"
+                            fontSize="8"
+                            textAnchor="middle"
+                          >
+                            #{idx + 1}
+                          </text>
+                        </g>
+                      );
+                    })}
+                  </svg>
+
+                  {hoveredProgressPoint && (
+                    <div
+                      style={{
+                        position: "absolute",
+                        left: `${(hoveredProgressPoint.x / 600) * 100}%`,
+                        top: `${hoveredProgressPoint.y - 12}px`,
+                        transform: "translate(-50%, -100%)",
+                        background: "rgba(17, 12, 34, 0.95)",
+                        border: "1px solid var(--accent-purple)",
+                        boxShadow: "0 4px 20px rgba(167, 139, 250, 0.25)",
+                        backdropFilter: "blur(8px)",
+                        borderRadius: "8px",
+                        padding: "10px 14px",
+                        zIndex: 100,
+                        pointerEvents: "none",
+                        width: "200px",
+                        fontSize: "0.8rem",
+                        color: "var(--text-primary)"
+                      }}
+                    >
+                      <div style={{ fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", marginBottom: "4px" }}>
+                        {hoveredProgressPoint.topic}
+                      </div>
+                      <div style={{ color: "var(--accent-cyan)", fontWeight: 700, display: "flex", justifyContent: "space-between" }}>
+                        <span>Score Accuracy:</span>
+                        <span>{hoveredProgressPoint.percentage}%</span>
+                      </div>
+                      <div style={{ color: "var(--text-secondary)", fontSize: "0.75rem", marginTop: "2px", display: "flex", justifyContent: "space-between" }}>
+                        <span>Raw Score:</span>
+                        <span>{hoveredProgressPoint.score} / {hoveredProgressPoint.totalMarks} marks</span>
+                      </div>
+                      <div style={{ borderTop: "1px solid rgba(255, 255, 255, 0.08)", marginTop: "6px", paddingTop: "4px", fontSize: "0.7rem", color: "var(--text-muted)", display: "flex", justifyContent: "space-between" }}>
+                        <span>Attempt date:</span>
+                        <span>{new Date(hoveredProgressPoint.date).toLocaleDateString()}</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Row 3: Strong vs Weak Topics Breakdown */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(350px, 1fr))", gap: "24px" }}>
+              {/* Concept Masteries (Strong Topics) */}
+              <div style={{ background: "rgba(16, 185, 129, 0.02)", border: "1px solid rgba(16, 185, 129, 0.15)", borderRadius: "8px", padding: "20px" }}>
+                <h4 style={{ margin: "0 0 16px 0", fontSize: "1.1rem", fontWeight: 600, color: "#10b981", display: "flex", alignItems: "center", gap: "8px" }}>
+                  <span>🏆</span> Concept Masteries (Strong Areas)
+                </h4>
+
+                {sortedStrong.length === 0 ? (
+                  <div style={{ textAlign: "center", padding: "30px 10px", color: "var(--text-muted)", fontSize: "0.85rem" }}>
+                    No concept masteries logged yet. When the student scores well on specific subtopics without errors, they will appear here.
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "16px", maxHeight: "300px", overflowY: "auto", paddingRight: "6px" }}>
+                    {sortedStrong.map(wk => {
+                      const totalCount = wk.successCount + wk.errorCount;
+                      const ratio = totalCount > 0 ? Math.round((wk.successCount / totalCount) * 100) : 0;
+                      return (
+                        <div key={wk.id} style={{ background: "rgba(255, 255, 255, 0.01)", border: "1px solid rgba(255,255,255,0.02)", padding: "12px", borderRadius: "6px" }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.85rem", marginBottom: "6px" }}>
+                            <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>{wk.subtopic}</span>
+                            <span style={{ color: "#a7f3d0", fontWeight: "bold" }}>{ratio}% Accuracy</span>
+                          </div>
+                          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.72rem", color: "var(--text-secondary)", marginBottom: "8px" }}>
+                            <span>{wk.subject} &bull; {wk.topic}</span>
+                            <span>{wk.successCount} Correct / {wk.errorCount} Mistakes</span>
+                          </div>
+                          <div style={{ width: "100%", height: "6px", background: "rgba(255, 255, 255, 0.05)", borderRadius: "3px" }}>
+                            <div
+                              style={{
+                                width: `${ratio}%`,
+                                height: "100%",
+                                background: "#10b981",
+                                borderRadius: "3px",
+                                boxShadow: "0 0 6px rgba(16, 185, 129, 0.4)"
+                              }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Focus Areas (Weak Topics) */}
+              <div style={{ background: "rgba(244, 63, 94, 0.02)", border: "1px solid rgba(244, 63, 94, 0.15)", borderRadius: "8px", padding: "20px" }}>
+                <h4 style={{ margin: "0 0 16px 0", fontSize: "1.1rem", fontWeight: 600, color: "#f43f5e", display: "flex", alignItems: "center", gap: "8px" }}>
+                  <span>⚠️</span> Focus Areas (Needs Practice)
+                </h4>
+
+                {sortedWeak.length === 0 ? (
+                  <div style={{ textAlign: "center", padding: "30px 10px", color: "var(--text-muted)", fontSize: "0.85rem" }}>
+                    No immediate focus areas. Excellent! Keep practicing to maintain high precision.
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "16px", maxHeight: "300px", overflowY: "auto", paddingRight: "6px" }}>
+                    {sortedWeak.map(wk => {
+                      const totalCount = wk.successCount + wk.errorCount;
+                      const ratio = totalCount > 0 ? Math.round((wk.successCount / totalCount) * 100) : 0;
+                      return (
+                        <div key={wk.id} style={{ background: "rgba(255, 255, 255, 0.01)", border: "1px solid rgba(255,255,255,0.02)", padding: "12px", borderRadius: "6px" }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.85rem", marginBottom: "6px" }}>
+                            <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>{wk.subtopic}</span>
+                            <span style={{ color: "#fca5a5", fontWeight: "bold" }}>{ratio}% Accuracy</span>
+                          </div>
+                          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.72rem", color: "var(--text-secondary)", marginBottom: "8px" }}>
+                            <span>{wk.subject} &bull; {wk.topic}</span>
+                            <span style={{ color: "#fca5a5" }}>{wk.errorCount} Mistakes / {wk.successCount} Correct</span>
+                          </div>
+                          <div style={{ width: "100%", height: "6px", background: "rgba(255, 255, 255, 0.05)", borderRadius: "3px" }}>
+                            <div
+                              style={{
+                                width: `${ratio}%`,
+                                height: "100%",
+                                background: "#ef4444",
+                                borderRadius: "3px",
+                                boxShadow: "0 0 6px rgba(239, 68, 68, 0.4)"
+                              }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </section>
@@ -1574,6 +2315,8 @@ export default function DashboardPage() {
           </div>
         </div>
       )}
+
+
 
       {/* Parent Grader Modal */}
       {gradingWorksheetId && (
@@ -2213,6 +2956,70 @@ export default function DashboardPage() {
                 <div className="form-group">
                   <label className="form-label">School Board</label>
                   <input type="text" className="form-input" value="CBSE (fixed for MVP)" disabled style={{ opacity: 0.7 }} />
+                </div>
+
+                <div className="form-group" style={{ marginBottom: "20px" }}>
+                  <label className="form-label">Student Mobile Number (for Login)</label>
+                  <input
+                    type="tel"
+                    required
+                    placeholder="e.g. +91 98765 43210"
+                    className="form-input"
+                    value={editStudentPhone}
+                    onChange={e => setEditStudentPhone(e.target.value)}
+                  />
+                </div>
+
+                <div className="form-group" style={{ marginBottom: "20px" }}>
+                  <label className="form-label">Profile Password (minimum 6 alphanumeric characters)</label>
+                  <div style={{ position: "relative" }}>
+                    <input
+                      type={showEditPassword ? "text" : "password"}
+                      required
+                      placeholder="Create a strong password"
+                      className="form-input"
+                      style={{ paddingRight: "50px" }}
+                      value={editPassword}
+                      onChange={e => setEditPassword(e.target.value)}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowEditPassword(!showEditPassword)}
+                      style={{
+                        position: "absolute",
+                        right: "10px",
+                        top: "50%",
+                        transform: "translateY(-50%)",
+                        background: "none",
+                        border: "none",
+                        color: "var(--accent-purple)",
+                        cursor: "pointer",
+                        fontSize: "0.8rem",
+                        fontWeight: 600
+                      }}
+                    >
+                      {showEditPassword ? "Hide" : "Show"}
+                    </button>
+                  </div>
+                  {editPassword && (() => {
+                    const strength = getPasswordStrength(editPassword);
+                    return (
+                      <div style={{ marginTop: "8px" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.75rem", marginBottom: "4px" }}>
+                          <span style={{ color: "var(--text-secondary)" }}>Password Strength:</span>
+                          <span style={{ color: strength.color, fontWeight: 700 }}>{strength.label}</span>
+                        </div>
+                        <div style={{ width: "100%", height: "4px", background: "rgba(255,255,255,0.05)", borderRadius: "2px", overflow: "hidden" }}>
+                          <div style={{
+                            width: `${(strength.score / 4) * 100}%`,
+                            height: "100%",
+                            background: strength.color,
+                            transition: "width 0.3s ease"
+                          }} />
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 <div style={{ padding: "16px 0", borderTop: "1px solid rgba(255,255,255,0.06)", marginTop: "16px" }}>

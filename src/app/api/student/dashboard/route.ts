@@ -36,13 +36,15 @@ export async function GET(req: NextRequest) {
       }
     });
 
-    // 3. Fetch weakness logs (where errorCount is greater than 0)
+    // 3. Fetch all weakness and progress logs
     const weaknesses = await prisma.weaknessLog.findMany({
       where: {
-        studentProfileId: profileId,
-        errorCount: { gt: 0 }
+        studentProfileId: profileId
       },
-      orderBy: { errorCount: "desc" }
+      orderBy: [
+        { errorCount: "desc" },
+        { successCount: "desc" }
+      ]
     });
 
     return NextResponse.json({
@@ -53,7 +55,9 @@ export async function GET(req: NextRequest) {
         board: profile.board,
         parentPin: profile.parentPin,
         parentEmail: profile.parentEmail,
-        parentPhone: profile.parentPhone
+        parentPhone: profile.parentPhone,
+        studentPhone: profile.studentPhone,
+        password: profile.password
       },
       worksheets,
       weaknesses

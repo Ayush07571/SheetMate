@@ -11,6 +11,7 @@ export default function HomePage() {
   const router = useRouter();
   const [studentProfileId, setStudentProfileId] = useState<string | null>(null);
   const [studentProfile, setStudentProfile] = useState<any | null>(null);
+  const [showLogoutToast, setShowLogoutToast] = useState(false);
 
   // Sync profile ID on load
   useEffect(() => {
@@ -30,10 +31,29 @@ export default function HomePage() {
     }
   }, []);
 
+  // Check for logout flag in localStorage on load
+  useEffect(() => {
+    const showToast = localStorage.getItem("sheetmate_show_logout_toast");
+    if (showToast === "true") {
+      setShowLogoutToast(true);
+      localStorage.removeItem("sheetmate_show_logout_toast");
+      // Auto-hide after 6 seconds
+      const timer = setTimeout(() => {
+        setShowLogoutToast(false);
+      }, 6000);
+      return () => clearTimeout(timer);
+    }
+  }, []);
+
   const handleLogOut = () => {
     localStorage.removeItem("sheetmate_profile_id");
     setStudentProfileId(null);
-    router.refresh();
+    setStudentProfile(null);
+    setShowLogoutToast(true);
+    // Auto-hide after 6 seconds
+    setTimeout(() => {
+      setShowLogoutToast(false);
+    }, 6000);
   };
   
   // Selection states synced from the Wizard to the Preview paper
@@ -58,6 +78,75 @@ export default function HomePage() {
     <main style={{ minHeight: "100vh", position: "relative", padding: "20px" }}>
       {/* 3D WebGL Floating Background */}
       <ThreeBackground />
+
+      <style>{`
+        @keyframes slideDown {
+          from { transform: translate(-50%, -30px); opacity: 0; }
+          to { transform: translate(-50%, 0); opacity: 1; }
+        }
+      `}</style>
+
+      {/* Toast Notification for Guest Mode / Logout */}
+      {showLogoutToast && (
+        <div style={{
+          position: "fixed",
+          top: "20px",
+          left: "50%",
+          transform: "translateX(-50%)",
+          zIndex: 1000,
+          background: "rgba(15, 23, 42, 0.85)",
+          backdropFilter: "blur(12px)",
+          border: "1px solid rgba(6, 182, 212, 0.45)",
+          boxShadow: "0 0 25px rgba(6, 182, 212, 0.3), inset 0 0 12px rgba(255,255,255,0.05)",
+          borderRadius: "12px",
+          padding: "14px 20px",
+          display: "flex",
+          alignItems: "center",
+          gap: "14px",
+          maxWidth: "480px",
+          width: "calc(100% - 40px)",
+          animation: "slideDown 0.3s ease forwards"
+        }}>
+          <div style={{
+            width: "36px",
+            height: "36px",
+            background: "rgba(6, 182, 212, 0.15)",
+            borderRadius: "50%",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            color: "var(--accent-cyan)",
+            fontSize: "1.2rem",
+            flexShrink: 0
+          }}>
+            ℹ
+          </div>
+          <div style={{ flex: 1, textAlign: "left" }}>
+            <h4 style={{ margin: 0, fontSize: "0.88rem", fontWeight: 700, color: "var(--text-primary)" }}>
+              Working as Guest User
+            </h4>
+            <p style={{ margin: "2px 0 0 0", fontSize: "0.76rem", color: "var(--text-secondary)", lineHeight: 1.3 }}>
+              You are logged out. Worksheets are limited to 4 per 24 hours. Create a profile to unlock unlimited generation.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowLogoutToast(false)}
+            style={{
+              background: "none",
+              border: "none",
+              color: "var(--text-muted)",
+              cursor: "pointer",
+              fontSize: "1.2rem",
+              padding: "0 4px",
+              display: "flex",
+              alignItems: "center"
+            }}
+          >
+            ×
+          </button>
+        </div>
+      )}
 
       {/* Navigation bar header */}
       <header
@@ -151,34 +240,48 @@ export default function HomePage() {
           {/* Column 1: Info and Wizard */}
           <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
             <div>
-              <span
-                style={{
-                  fontSize: "0.75rem",
-                  fontWeight: 700,
-                  color: "#a78bfa",
-                  background: "rgba(124, 58, 237, 0.12)",
-                  padding: "6px 12px",
-                  borderRadius: "20px",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.05em",
-                  border: "1px solid rgba(124, 58, 237, 0.2)"
-                }}
-              >
-                AI-Powered School Practice
-              </span>
+              {studentProfile ? (
+                <div style={{ display: "inline-flex", alignItems: "center", gap: "8px", background: "rgba(16, 185, 129, 0.12)", padding: "6px 12px", borderRadius: "20px", border: "1px solid rgba(16, 185, 129, 0.25)" }}>
+                  <span style={{ width: "8px", height: "8px", background: "#10b981", borderRadius: "50%", display: "inline-block", boxShadow: "0 0 8px #10b981" }} className="pulse-dot" />
+                  <span style={{ fontSize: "0.75rem", fontWeight: 700, color: "#34d399", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                    Active Profile: {studentProfile.name} ({studentProfile.grade})
+                  </span>
+                </div>
+              ) : (
+                <span
+                  style={{
+                    fontSize: "0.75rem",
+                    fontWeight: 700,
+                    color: "var(--accent-cyan)",
+                    background: "rgba(6, 182, 212, 0.12)",
+                    padding: "6px 12px",
+                    borderRadius: "20px",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.05em",
+                    border: "1px solid rgba(6, 182, 212, 0.2)"
+                  }}
+                >
+                  Guest Workspace (Limited Mode)
+                </span>
+              )}
               <h1
                 style={{
-                  fontSize: "clamp(2rem, 5vw, 3rem)",
+                  fontSize: "clamp(2.2rem, 5vw, 3rem)",
                   lineHeight: 1.1,
                   marginTop: "16px",
-                  marginBottom: "16px"
+                  marginBottom: "16px",
+                  fontFamily: "var(--font-heading)"
                 }}
                 className="gradient-text"
               >
-                Worksheets aligned to your child's exam pattern.
+                {studentProfile 
+                  ? `Adaptive practice workspace for ${studentProfile.name}.`
+                  : "Worksheets aligned to your child's exam pattern."}
               </h1>
               <p style={{ color: "var(--text-secondary)", fontSize: "1.05rem", maxWidth: "480px" }}>
-                Generate customized worksheets aligned to CBSE syllabus in seconds (ICSE and State Boards coming soon). Enter scores to adapt future worksheets to their weak areas automatically.
+                {studentProfile
+                  ? "Your learning strengths and weaknesses are actively being tracked. Generating worksheets will automatically target topics you struggled with before."
+                  : "Generate customized worksheets aligned to CBSE syllabus in seconds (ICSE and State Boards coming soon). Enter scores to adapt future worksheets to their weak areas automatically."}
               </p>
             </div>
 

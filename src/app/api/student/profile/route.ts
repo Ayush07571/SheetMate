@@ -5,10 +5,24 @@ import prisma from "@/lib/db";
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { name, grade, board, parentPin, parentEmail, parentPhone } = body;
+    const { name, grade, board, parentPin, parentEmail, parentPhone, studentPhone, password } = body;
 
     if (!name || !grade || !board) {
       return NextResponse.json({ error: "Missing name, grade, or board" }, { status: 400 });
+    }
+
+    if (!password) {
+      return NextResponse.json({ error: "Password is required" }, { status: 400 });
+    }
+
+    if (password.length < 6) {
+      return NextResponse.json({ error: "Password must be at least 6 characters long" }, { status: 400 });
+    }
+
+    const hasLetter = /[a-zA-Z]/.test(password);
+    const hasNumber = /[0-9]/.test(password);
+    if (!hasLetter || !hasNumber) {
+      return NextResponse.json({ error: "Password must contain both letters and numbers" }, { status: 400 });
     }
 
     // Find or create a default global user to hold profiles in MVP
@@ -31,7 +45,9 @@ export async function POST(req: NextRequest) {
         board,
         parentPin: parentPin || "0000",
         parentEmail: parentEmail || null,
-        parentPhone: parentPhone || null
+        parentPhone: parentPhone || null,
+        studentPhone: studentPhone || null,
+        password: password || ""
       }
     });
 
@@ -42,7 +58,8 @@ export async function POST(req: NextRequest) {
       grade: profile.grade,
       board: profile.board,
       parentEmail: profile.parentEmail,
-      parentPhone: profile.parentPhone
+      parentPhone: profile.parentPhone,
+      studentPhone: profile.studentPhone
     });
 
   } catch (error) {
@@ -54,10 +71,21 @@ export async function POST(req: NextRequest) {
 export async function PUT(req: NextRequest) {
   try {
     const body = await req.json();
-    const { id, name, grade, board, parentPin, parentEmail, parentPhone } = body;
+    const { id, name, grade, board, parentPin, parentEmail, parentPhone, studentPhone, password } = body;
 
     if (!id || !name || !grade || !board) {
       return NextResponse.json({ error: "Missing profile ID, name, grade, or board" }, { status: 400 });
+    }
+
+    if (password !== undefined) {
+      if (password.length < 6) {
+        return NextResponse.json({ error: "Password must be at least 6 characters long" }, { status: 400 });
+      }
+      const hasLetter = /[a-zA-Z]/.test(password);
+      const hasNumber = /[0-9]/.test(password);
+      if (!hasLetter || !hasNumber) {
+        return NextResponse.json({ error: "Password must contain both letters and numbers" }, { status: 400 });
+      }
     }
 
     const existingProfile = await prisma.studentProfile.findUnique({
@@ -76,7 +104,9 @@ export async function PUT(req: NextRequest) {
         board,
         parentPin: parentPin || existingProfile.parentPin,
         parentEmail: parentEmail !== undefined ? parentEmail : existingProfile.parentEmail,
-        parentPhone: parentPhone !== undefined ? parentPhone : existingProfile.parentPhone
+        parentPhone: parentPhone !== undefined ? parentPhone : existingProfile.parentPhone,
+        studentPhone: studentPhone !== undefined ? studentPhone : existingProfile.studentPhone,
+        password: password !== undefined ? password : existingProfile.password
       }
     });
 
@@ -85,7 +115,8 @@ export async function PUT(req: NextRequest) {
       profileId: updatedProfile.id,
       name: updatedProfile.name,
       grade: updatedProfile.grade,
-      board: updatedProfile.board
+      board: updatedProfile.board,
+      studentPhone: updatedProfile.studentPhone
     });
 
   } catch (error) {
