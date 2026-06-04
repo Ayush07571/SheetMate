@@ -95,7 +95,7 @@ export default function PreviewPaper({
       <div style={{ fontSize: "0.8rem", color: "#334155" }}>
         <div style={{ marginBottom: "12px", borderBottom: "1px dashed #e2e8f0", paddingBottom: "6px" }}>
           <p style={{ fontWeight: 700, color: "#4f46e5", fontSize: "0.75rem", textTransform: "uppercase" }}>Section A: Multiple Choice Questions</p>
-          <p style={{ fontWeight: 600, color: "#1e293b" }}>Q1: A CBSE-aligned query regarding "{resolvedTopic}" goes here?</p>
+          <p style={{ fontWeight: 600, color: "#1e293b" }}>Q1: A curriculum-aligned query regarding "{resolvedTopic}" goes here?</p>
           <p style={{ color: "#64748b", paddingLeft: "8px" }}>a) Option A &nbsp;&nbsp; b) Option B &nbsp;&nbsp; c) Option C &nbsp;&nbsp; d) Option D</p>
         </div>
         <div style={{ marginBottom: "12px", borderBottom: "1px dashed #e2e8f0", paddingBottom: "6px" }}>

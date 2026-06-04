@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "SheetMate | AI-Powered School Worksheet Generator",
-  description: "Generate customized practice worksheets aligned to CBSE syllabus for Grades LKG to Class 8. Personalize homework for weak topics automatically.",
+  description: "Generate customized practice worksheets aligned to school board syllabus for Grades LKG to Class 8. Personalize homework for weak topics automatically.",
 };
 
 export default function RootLayout({

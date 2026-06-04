@@ -290,7 +290,9 @@ h1, h2, h3, h4, h5, h6 {
 .tubelight-brand-logo {
   width: 28px;
   height: 28px;
-  background: linear-gradient(135deg, var(--accent-purple), var(--accent-cyan));
+  background-image: url('/meta-icon.png');
+  background-size: cover;
+  background-position: center;
   border-radius: 50%;
   box-shadow: 0 0 12px var(--accent-purple-glow);
 }

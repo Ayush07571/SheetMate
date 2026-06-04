@@ -461,12 +461,12 @@ export default function HomePage() {
               }}
               className="gradient-text"
             >
-              Tailored worksheets. Aligned to CBSE syllabus.
+              Tailored worksheets. Aligned to school syllabus.
             </h1>
             <p style={{ color: "var(--text-secondary)", fontSize: "1.1rem", maxWidth: "520px", lineHeight: 1.6 }}>
               {studentProfile
                 ? "Your adaptive learning workspace is ready. Practice sheets are custom-weighted to target your conceptual weaknesses."
-                : "Create standard CBSE-aligned printable worksheets (Class LKG - Class 8) in seconds. Lock parent analytics & grade sheets via OTP."}
+                : "Create standard curriculum-aligned printable worksheets (Class LKG - Class 8) in seconds. Lock parent analytics & grade sheets via OTP."}
             </p>
           </div>
 
@@ -636,7 +636,7 @@ export default function HomePage() {
             </div>
             <h3 style={{ fontSize: "1.25rem", marginBottom: "12px" }}>1. Curated AI Generation</h3>
             <p style={{ color: "var(--text-secondary)", fontSize: "0.9rem", lineHeight: "1.6" }}>
-              Worksheets align directly with CBSE syllabus across Grades LKG-Class 8 (with ICSE and State Boards coming soon). Generates high-quality exam structures and parent answer keys in seconds.
+              Worksheets align directly with school boards and syllabus guidelines across Grades LKG-Class 8. Generates high-quality exam structures and parent answer keys in seconds.
             </p>
           </div>
 

@@ -43,7 +43,7 @@ export default function GeneratorWizard({
 
   // UX states for loading profiles and progress indicator
   const [loadingProfile, setLoadingProfile] = useState(false);
-  const [progressMsg, setProgressMsg] = useState("Consulting CBSE syllabus guidelines...");
+  const [progressMsg, setProgressMsg] = useState("Consulting syllabus guidelines...");
   const [progressPercent, setProgressPercent] = useState(10);
 
   // Force includeAnswerKey to false for guest users
@@ -88,12 +88,12 @@ export default function GeneratorWizard({
   useEffect(() => {
     if (!loading) {
       setProgressPercent(10);
-      setProgressMsg("Consulting CBSE syllabus guidelines...");
+      setProgressMsg("Consulting syllabus guidelines...");
       return;
     }
     
     const msgs = [
-      { text: "Consulting CBSE syllabus guidelines...", pct: 15 },
+      { text: "Consulting syllabus guidelines...", pct: 15 },
       { text: "Structuring exam paper layout...", pct: 35 },
       { text: "Generating high-quality questions with AI...", pct: 60 },
       { text: "Drafting correct answer keys & explanations...", pct: 80 },
@@ -337,10 +337,10 @@ export default function GeneratorWizard({
                 fontSize: "0.7rem", fontWeight: 700, color: "#a78bfa",
                 background: "rgba(124,58,237,0.12)", padding: "3px 10px",
                 borderRadius: "20px", border: "1px solid rgba(124,58,237,0.2)"
-              }}>CBSE (NCERT)</span>
+              }}>Standard Syllabus</span>
             </div>
             <p style={{ color: "var(--text-muted)", fontSize: "0.8rem", marginBottom: "18px" }}>
-              Board is set to <strong>CBSE</strong> for MVP. More boards coming soon.
+              Syllabus is set to standard board curriculum for MVP.
             </p>
             <div className="selection-grid">
               {GRADES.map(g => (
@@ -368,7 +368,7 @@ export default function GeneratorWizard({
               display: "flex", justifyContent: "space-between", alignItems: "center"
             }}>
               <span style={{ fontSize: "0.85rem", color: "var(--text-secondary)" }}>
-                CBSE &bull; <strong>{grade}</strong>
+                Curriculum &bull; <strong>{grade}</strong>
               </span>
               <button type="button" style={{
                 background: "none", border: "none", color: "var(--accent-cyan)",
@@ -559,7 +559,7 @@ export default function GeneratorWizard({
                 <strong>Worksheet Summary</strong>
               </p>
               <p style={{ fontSize: "0.82rem", color: "var(--text-muted)" }}>
-                CBSE &bull; {grade} &bull; {subject} &bull; {difficulty}
+                Syllabus &bull; {grade} &bull; {subject} &bull; {difficulty}
               </p>
               <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginTop: "4px" }}>
                 {selectedTopicIds.length === topics.length && topics.length > 0

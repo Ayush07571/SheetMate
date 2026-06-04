@@ -1354,7 +1354,7 @@ export default function DashboardPage() {
 
                       <div className="form-group">
                         <label className="form-label">School Board</label>
-                        <input type="text" className="form-input" value="CBSE (fixed for MVP)" disabled style={{ opacity: 0.7 }} />
+                        <input type="text" className="form-input" value="Standard Board" disabled style={{ opacity: 0.7 }} />
                       </div>
 
                       <div className="form-group" style={{ marginBottom: "20px" }}>
@@ -3157,7 +3157,7 @@ export default function DashboardPage() {
 
                 <div className="form-group">
                   <label className="form-label">School Board</label>
-                  <input type="text" className="form-input" value="CBSE (fixed for MVP)" disabled style={{ opacity: 0.7 }} />
+                  <input type="text" className="form-input" value="Standard Board" disabled style={{ opacity: 0.7 }} />
                 </div>
 
                 <div className="form-group" style={{ marginBottom: "20px" }}>

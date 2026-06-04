@@ -16,7 +16,7 @@ export default function ChatAgent() {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       role: "assistant",
-      content: "Hi! I am SheetMate AI. 📚 Tell me what worksheet you want to generate (e.g. 'Give me a Class 5 CBSE Math worksheet on Fractions, Easy difficulty')."
+      content: "Hi! I am SheetMate AI. 📚 Tell me what worksheet you want to generate (e.g. 'Give me a Class 5 Math worksheet on Fractions, Easy difficulty')."
     }
   ]);
   const [input, setInput] = useState("");
@@ -282,8 +282,8 @@ export default function ChatAgent() {
             <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "10px" }}>
               <p style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Try asking like this:</p>
               {[
-                "Class 5 CBSE Math worksheet on Fractions, Medium",
-                "Grade 7 CBSE Science paper about Plants, Hard",
+                "Class 5 Math worksheet on Fractions, Medium",
+                "Grade 7 Science paper about Plants, Hard",
                 "Class 3 English Nouns worksheets, Easy"
               ].map((sug, idx) => (
                 <div
