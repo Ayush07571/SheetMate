@@ -244,7 +244,7 @@ export default function HomePage() {
                 style={{ padding: "6px 14px", fontSize: "0.78rem", borderRadius: "20px" }}
                 onClick={() => router.push("/dashboard")}
               >
-                Student Log In
+                Log In
               </button>
               <button
                 type="button"
@@ -391,7 +391,7 @@ export default function HomePage() {
                     setMobileMenuOpen(false);
                   }}
                 >
-                  Student Log In
+                  Log In
                 </button>
                 <button
                   type="button"
