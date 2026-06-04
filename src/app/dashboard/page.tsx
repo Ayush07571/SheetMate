@@ -728,18 +728,57 @@ export default function DashboardPage() {
   };
 
   const handleProfileReset = () => {
-    if (confirm("Are you sure you want to log out and switch student profiles? Your history remains saved under your profile key.")) {
+    if (confirm("Are you sure you want to switch student profiles?")) {
       localStorage.removeItem("sheetmate_profile_id");
-      localStorage.removeItem("sheetmate_parent_phone");
-      localStorage.setItem("sheetmate_show_logout_toast", "true");
       setProfileId(null);
       setProfile(null);
       setWorksheets([]);
       setWeaknesses([]);
-      setParentUnlocked(false);
+      
+      const savedParentPhone = localStorage.getItem("sheetmate_parent_phone");
+      if (savedParentPhone) {
+        setParentUnlocked(true);
+        setSignInTab("parent");
+        setParentPhoneInput(savedParentPhone);
+        setLoadingProfiles(true);
+        setHasSearchedProfiles(true);
+        setError(null);
+        
+        fetch(`/api/student/profiles?contact=${encodeURIComponent(savedParentPhone)}`)
+          .then(res => {
+            if (res.ok) return res.json();
+            throw new Error("Failed to load profiles");
+          })
+          .then(data => {
+            setExistingProfiles(data || []);
+          })
+          .catch(err => {
+            console.error("Failed to load profiles on switch:", err);
+            setExistingProfiles([]);
+          })
+          .finally(() => setLoadingProfiles(false));
+      } else {
+        setParentUnlocked(false);
+        setSignInTab("student");
+        setHasSearchedProfiles(false);
+        setExistingProfiles([]);
+      }
+      
       setAuthMode("signin");
-      router.push("/");
     }
+  };
+
+  const handleLogOut = () => {
+    localStorage.removeItem("sheetmate_profile_id");
+    localStorage.removeItem("sheetmate_parent_phone");
+    localStorage.setItem("sheetmate_show_logout_toast", "true");
+    setProfileId(null);
+    setProfile(null);
+    setWorksheets([]);
+    setWeaknesses([]);
+    setParentUnlocked(false);
+    setAuthMode("signin");
+    router.push("/");
   };
 
   const openEditModal = () => {
@@ -885,6 +924,14 @@ export default function DashboardPage() {
     }
   };
 
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    e.currentTarget.style.setProperty("--mouse-x", `${x}px`);
+    e.currentTarget.style.setProperty("--mouse-y", `${y}px`);
+  };
+
   if (loading) {
     return (
       <div style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "100vh" }}>
@@ -984,7 +1031,7 @@ export default function DashboardPage() {
         </nav>
         
         <div style={{ maxWidth: authMode === "signup" ? "900px" : "500px", margin: "20px auto 60px auto", position: "relative", transition: "max-width 0.3s ease" }}>
-          <div className="glass-card" style={{ padding: "40px" }}>
+          <div className="glass-card spotlight-card" onMouseMove={handleMouseMove} style={{ padding: "40px" }}>
             <h1 className="gradient-text" style={{ fontSize: "1.8rem", marginBottom: "8px", textAlign: "center" }}>
               {authMode === "signin" ? "Who is practicing today?" : "Create Student Profile"}
             </h1>
@@ -998,43 +1045,22 @@ export default function DashboardPage() {
               // SIGN IN: Tabbed Student vs Parent Gateway
               <div>
                 {/* Tabs selection */}
-                <div style={{ display: "flex", borderBottom: "1px solid var(--border-glow)", marginBottom: "24px" }}>
+                <div className="slider-tabs-container">
                   <button
                     type="button"
-                    style={{
-                      flex: 1,
-                      background: "none",
-                      border: "none",
-                      borderBottom: signInTab === "student" ? "2px solid var(--accent-purple)" : "none",
-                      color: signInTab === "student" ? "var(--text-primary)" : "var(--text-secondary)",
-                      padding: "12px",
-                      cursor: "pointer",
-                      fontWeight: 700,
-                      fontSize: "0.9rem",
-                      transition: "all 0.2s"
-                    }}
+                    className={`slider-tab-btn ${signInTab === "student" ? "active" : ""}`}
                     onClick={() => { setSignInTab("student"); setError(null); }}
                   >
                     🎒 Student Portal
                   </button>
                   <button
                     type="button"
-                    style={{
-                      flex: 1,
-                      background: "none",
-                      border: "none",
-                      borderBottom: signInTab === "parent" ? "2px solid var(--accent-cyan)" : "none",
-                      color: signInTab === "parent" ? "var(--text-primary)" : "var(--text-secondary)",
-                      padding: "12px",
-                      cursor: "pointer",
-                      fontWeight: 700,
-                      fontSize: "0.9rem",
-                      transition: "all 0.2s"
-                    }}
+                    className={`slider-tab-btn ${signInTab === "parent" ? "active" : ""}`}
                     onClick={() => { setSignInTab("parent"); setError(null); }}
                   >
                     👨‍👩‍👦 Parent Portal
                   </button>
+                  <div className={`slider-tab-indicator ${signInTab === "parent" ? "right cyan-gradient" : ""}`} />
                 </div>
 
                 {signInTab === "student" ? (
@@ -1046,7 +1072,7 @@ export default function DashboardPage() {
                         type="text"
                         required
                         placeholder="e.g. aarav123"
-                        className="form-input"
+                        className="form-input premium-input"
                         value={studentUsernameInput}
                         onChange={e => setStudentUsernameInput(e.target.value.replace(/\s+/g, ""))}
                       />
@@ -1058,7 +1084,7 @@ export default function DashboardPage() {
                           type={showLoginPassword ? "text" : "password"}
                           required
                           placeholder="••••••••"
-                          className="form-input"
+                          className="form-input premium-input"
                           style={{ paddingRight: "50px" }}
                           value={studentPasswordInput}
                           onChange={e => setStudentPasswordInput(e.target.value)}
@@ -1105,7 +1131,7 @@ export default function DashboardPage() {
                             type="tel"
                             required
                             placeholder="e.g. +91 98765 43210"
-                            className="form-input"
+                            className="form-input premium-input cyan-focus"
                             value={parentPhoneInput}
                             onChange={e => setParentPhoneInput(e.target.value)}
                           />
@@ -1144,7 +1170,7 @@ export default function DashboardPage() {
                             maxLength={4}
                             required
                             placeholder="e.g. 1234"
-                            className="form-input"
+                            className="form-input premium-input cyan-focus"
                             style={{ textAlign: "center", fontSize: "1.3rem", letterSpacing: "0.2em" }}
                             value={parentOtpInput}
                             onChange={e => setParentOtpInput(e.target.value.replace(/\D/g, ""))}
@@ -1710,6 +1736,8 @@ export default function DashboardPage() {
   return (
     <main className="responsive-container" style={{ minHeight: "100vh" }}>
       <ThreeBackground />
+      {/* Premium Fading Grid Overlay */}
+      <div className="grid-bg-overlay" />
 
       {/* Floating Tubelight Navbar */}
       <nav className={`tubelight-nav ${mobileMenuOpen ? "open" : ""}`}>
@@ -1737,10 +1765,7 @@ export default function DashboardPage() {
             type="button"
             className="btn-secondary"
             style={{ padding: "6px 14px", fontSize: "0.78rem", borderColor: "rgba(239, 68, 68, 0.3)", color: "#fca5a5", borderRadius: "20px" }}
-            onClick={() => {
-              localStorage.removeItem("sheetmate_profile_id");
-              router.push("/");
-            }}
+            onClick={handleLogOut}
           >
             Log Out
           </button>
@@ -1789,8 +1814,7 @@ export default function DashboardPage() {
               className="btn-secondary"
               style={{ width: "100%", padding: "10px", fontSize: "0.85rem", borderColor: "rgba(239, 68, 68, 0.3)", color: "#fca5a5", borderRadius: "20px" }}
               onClick={() => {
-                localStorage.removeItem("sheetmate_profile_id");
-                router.push("/");
+                handleLogOut();
                 setMobileMenuOpen(false);
               }}
             >
@@ -1802,7 +1826,7 @@ export default function DashboardPage() {
 
       {/* Profile summary banner */}
       {profile && (
-        <section style={{ maxWidth: "1200px", margin: "0 auto 30px auto" }} className="glass-card">
+        <section className="glass-card spotlight-card" onMouseMove={handleMouseMove} style={{ maxWidth: "1200px", margin: "0 auto 30px auto" }}>
           <div style={{ padding: "24px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "16px" }}>
             <div>
               <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", textTransform: "uppercase" }}>Student Workspace</p>
@@ -1847,7 +1871,7 @@ export default function DashboardPage() {
             gap: "30px"
           }}
         >
-          <div className="glass-card" style={{ padding: "28px" }}>
+          <div className="glass-card spotlight-card" onMouseMove={handleMouseMove} style={{ padding: "28px" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid var(--border-glow)", paddingBottom: "16px", marginBottom: "24px" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                 <span style={{ fontSize: "1.5rem" }}>📊</span>
@@ -1868,8 +1892,8 @@ export default function DashboardPage() {
             {/* Row 1: KPI Cards */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "20px", marginBottom: "30px" }}>
               {/* Card 1: Total Sheets */}
-              <div style={{ background: "rgba(255, 255, 255, 0.02)", border: "1px solid var(--border-glow)", borderRadius: "8px", padding: "20px", display: "flex", alignItems: "center", gap: "16px" }}>
-                <div style={{ width: "40px", height: "40px", borderRadius: "50%", background: "rgba(167, 139, 250, 0.1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.2rem", color: "var(--accent-purple)" }}>
+              <div className="spotlight-card" onMouseMove={handleMouseMove} style={{ background: "rgba(255, 255, 255, 0.02)", border: "1px solid var(--border-glow)", borderRadius: "8px", padding: "20px", display: "flex", alignItems: "center", gap: "16px" }}>
+                <div style={{ width: "40px", height: "40px", borderRadius: "50%", background: "rgba(167, 139, 250, 0.1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.2rem", color: "var(--accent-purple)", flexShrink: 0 }}>
                   📄
                 </div>
                 <div>
@@ -1879,8 +1903,8 @@ export default function DashboardPage() {
               </div>
 
               {/* Card 2: Grading Rate */}
-              <div style={{ background: "rgba(255, 255, 255, 0.02)", border: "1px solid var(--border-glow)", borderRadius: "8px", padding: "20px", display: "flex", alignItems: "center", gap: "16px" }}>
-                <div style={{ width: "40px", height: "40px", borderRadius: "50%", background: "rgba(6, 182, 212, 0.1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.2rem", color: "var(--accent-cyan)" }}>
+              <div className="spotlight-card" onMouseMove={handleMouseMove} style={{ background: "rgba(255, 255, 255, 0.02)", border: "1px solid var(--border-glow)", borderRadius: "8px", padding: "20px", display: "flex", alignItems: "center", gap: "16px" }}>
+                <div style={{ width: "40px", height: "40px", borderRadius: "50%", background: "rgba(6, 182, 212, 0.1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.2rem", color: "var(--accent-cyan)", flexShrink: 0 }}>
                   ✅
                 </div>
                 <div>
@@ -1892,8 +1916,8 @@ export default function DashboardPage() {
               </div>
 
               {/* Card 3: Average Score */}
-              <div style={{ background: "rgba(255, 255, 255, 0.02)", border: "1px solid var(--border-glow)", borderRadius: "8px", padding: "20px", display: "flex", alignItems: "center", gap: "16px" }}>
-                <div style={{ width: "40px", height: "40px", borderRadius: "50%", background: "rgba(167, 139, 250, 0.1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.2rem", color: "var(--accent-purple)" }}>
+              <div className="spotlight-card" onMouseMove={handleMouseMove} style={{ background: "rgba(255, 255, 255, 0.02)", border: "1px solid var(--border-glow)", borderRadius: "8px", padding: "20px", display: "flex", alignItems: "center", gap: "16px" }}>
+                <div style={{ width: "40px", height: "40px", borderRadius: "50%", background: "rgba(167, 139, 250, 0.1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.2rem", color: "var(--accent-purple)", flexShrink: 0 }}>
                   🎯
                 </div>
                 <div>
@@ -1905,8 +1929,8 @@ export default function DashboardPage() {
               </div>
 
               {/* Card 4: Mastery Status */}
-              <div style={{ background: "rgba(255, 255, 255, 0.02)", border: "1px solid var(--border-glow)", borderRadius: "8px", padding: "20px", display: "flex", alignItems: "center", gap: "16px" }}>
-                <div style={{ width: "40px", height: "40px", borderRadius: "50%", background: "rgba(16, 185, 129, 0.1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.2rem", color: "#10b981" }}>
+              <div className="spotlight-card" onMouseMove={handleMouseMove} style={{ background: "rgba(255, 255, 255, 0.02)", border: "1px solid var(--border-glow)", borderRadius: "8px", padding: "20px", display: "flex", alignItems: "center", gap: "16px" }}>
+                <div style={{ width: "40px", height: "40px", borderRadius: "50%", background: "rgba(16, 185, 129, 0.1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.2rem", color: "#10b981", flexShrink: 0 }}>
                   🏆
                 </div>
                 <div>
@@ -1921,7 +1945,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Row 2: Score Progression Chart */}
-            <div style={{ background: "rgba(255, 255, 255, 0.01)", border: "1px solid var(--border-glow)", borderRadius: "8px", padding: "24px", marginBottom: "30px" }}>
+            <div className="spotlight-card" onMouseMove={handleMouseMove} style={{ background: "rgba(255, 255, 255, 0.01)", border: "1px solid var(--border-glow)", borderRadius: "8px", padding: "24px", marginBottom: "30px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
                 <h4 style={{ margin: 0, fontSize: "1.05rem", fontWeight: 600, color: "var(--text-primary)" }}>
                   Score Progression Curve <span style={{ fontSize: "0.8rem", color: "var(--text-muted)", fontWeight: "normal" }}>(Last 10 Attempts)</span>
@@ -2110,7 +2134,7 @@ export default function DashboardPage() {
             {/* Row 3: Strong vs Weak Topics Breakdown */}
             <div className="responsive-grid-card" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "24px" }}>
               {/* Concept Masteries (Strong Topics) */}
-              <div style={{ background: "rgba(16, 185, 129, 0.02)", border: "1px solid rgba(16, 185, 129, 0.15)", borderRadius: "8px", padding: "20px" }}>
+              <div className="spotlight-card" onMouseMove={handleMouseMove} style={{ background: "rgba(16, 185, 129, 0.02)", border: "1px solid rgba(16, 185, 129, 0.15)", borderRadius: "8px", padding: "20px" }}>
                 <h4 style={{ margin: "0 0 16px 0", fontSize: "1.1rem", fontWeight: 600, color: "#10b981", display: "flex", alignItems: "center", gap: "8px" }}>
                   <span>🏆</span> Concept Masteries (Strong Areas)
                 </h4>
@@ -2153,7 +2177,7 @@ export default function DashboardPage() {
               </div>
 
               {/* Focus Areas (Weak Topics) */}
-              <div style={{ background: "rgba(244, 63, 94, 0.02)", border: "1px solid rgba(244, 63, 94, 0.15)", borderRadius: "8px", padding: "20px" }}>
+              <div className="spotlight-card" onMouseMove={handleMouseMove} style={{ background: "rgba(244, 63, 94, 0.02)", border: "1px solid rgba(244, 63, 94, 0.15)", borderRadius: "8px", padding: "20px" }}>
                 <h4 style={{ margin: "0 0 16px 0", fontSize: "1.1rem", fontWeight: 600, color: "#f43f5e", display: "flex", alignItems: "center", gap: "8px" }}>
                   <span>⚠️</span> Focus Areas (Needs Practice)
                 </h4>
@@ -2212,7 +2236,7 @@ export default function DashboardPage() {
         <div className="responsive-grid-card" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "30px" }}>
           
           {/* List 1: Practice sheets history */}
-          <div className="glass-card" style={{ padding: "24px" }}>
+          <div className="glass-card spotlight-card" onMouseMove={handleMouseMove} style={{ padding: "24px" }}>
             <h3 style={{ fontSize: "1.2rem", marginBottom: "20px", borderBottom: "1px solid var(--border-glow)", paddingBottom: "10px" }}>
               Practice History
             </h3>
@@ -2414,7 +2438,7 @@ export default function DashboardPage() {
           </div>
 
           {/* List 2: Weak concept metrics */}
-          <div className="glass-card" style={{ padding: "24px" }}>
+          <div className="glass-card spotlight-card" onMouseMove={handleMouseMove} style={{ padding: "24px" }}>
             <h3 style={{ fontSize: "1.2rem", marginBottom: "20px", borderBottom: "1px solid var(--border-glow)", paddingBottom: "10px" }}>
               Concept Improvement Log
             </h3>
@@ -2455,7 +2479,7 @@ export default function DashboardPage() {
       {/* Parent OTP Lock Modal */}
       {showPinModal && (
         <div style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", background: "rgba(0,0,0,0.8)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 100 }}>
-          <div className="glass-card" style={{ padding: "30px", width: "100%", maxWidth: "420px", margin: "20px" }}>
+          <div className="glass-card spotlight-card" onMouseMove={handleMouseMove} style={{ padding: "30px", width: "100%", maxWidth: "420px", margin: "20px" }}>
             <h3 style={{ fontSize: "1.2rem", marginBottom: "8px", textAlign: "center" }}>Unlock Parent Controls</h3>
             <p style={{ color: "var(--text-secondary)", fontSize: "0.85rem", marginBottom: "20px", textAlign: "center" }}>
               To view analytics, grade sheets, or edit profile, verify parent access.
@@ -2541,7 +2565,7 @@ export default function DashboardPage() {
       {/* Parent Grader Modal */}
       {gradingWorksheetId && (
         <div style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", background: "rgba(0,0,0,0.85)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 100 }}>
-          <div className="glass-card" style={{ padding: "30px", width: "100%", maxWidth: "800px", margin: "20px", maxHeight: "90vh", display: "flex", flexDirection: "column" }}>
+          <div className="glass-card spotlight-card" onMouseMove={handleMouseMove} style={{ padding: "30px", width: "100%", maxWidth: "800px", margin: "20px", maxHeight: "90vh", display: "flex", flexDirection: "column" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", borderBottom: "1px solid rgba(255,255,255,0.08)", paddingBottom: "16px" }}>
               <div>
                 <span style={{ fontSize: "0.75rem", color: "var(--accent-purple)", textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 700 }}>
@@ -2566,20 +2590,10 @@ export default function DashboardPage() {
             </div>
 
             {/* Tabs for Manual vs AI Grading */}
-            <div style={{ display: "flex", borderBottom: "1px solid rgba(255,255,255,0.08)", marginBottom: "20px" }}>
+            <div className="slider-tabs-container" style={{ marginBottom: "20px" }}>
               <button
                 type="button"
-                style={{
-                  background: "none",
-                  border: "none",
-                  borderBottom: gradingMode === "manual" ? "2px solid var(--accent-purple)" : "none",
-                  color: gradingMode === "manual" ? "var(--text-primary)" : "var(--text-secondary)",
-                  padding: "10px 20px",
-                  cursor: "pointer",
-                  fontSize: "0.85rem",
-                  fontWeight: 600,
-                  transition: "all 0.2s"
-                }}
+                className={`slider-tab-btn ${gradingMode === "manual" ? "active" : ""}`}
                 onClick={() => setGradingMode("manual")}
                 disabled={uploadingPdf}
               >
@@ -2587,22 +2601,13 @@ export default function DashboardPage() {
               </button>
               <button
                 type="button"
-                style={{
-                  background: "none",
-                  border: "none",
-                  borderBottom: gradingMode === "ai" ? "2px solid var(--accent-cyan)" : "none",
-                  color: gradingMode === "ai" ? "var(--text-primary)" : "var(--text-secondary)",
-                  padding: "10px 20px",
-                  cursor: "pointer",
-                  fontSize: "0.85rem",
-                  fontWeight: 600,
-                  transition: "all 0.2s"
-                }}
+                className={`slider-tab-btn ${gradingMode === "ai" ? "active" : ""}`}
                 onClick={() => setGradingMode("ai")}
                 disabled={uploadingPdf}
               >
                 AI PDF Reviewer (New)
               </button>
+              <div className={`slider-tab-indicator ${gradingMode === "ai" ? "right cyan-gradient" : ""}`} />
             </div>
 
             {gradingMode === "manual" ? (
@@ -3087,7 +3092,7 @@ export default function DashboardPage() {
       {/* Edit Profile Modal */}
       {showEditModal && (
         <div style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", background: "rgba(0,0,0,0.85)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 100 }}>
-          <div className="glass-card" style={{ padding: "30px", width: "100%", maxWidth: "450px", margin: "20px" }}>
+          <div className="glass-card spotlight-card" onMouseMove={handleMouseMove} style={{ padding: "30px", width: "100%", maxWidth: "450px", margin: "20px" }}>
             <h3 style={{ fontSize: "1.2rem", marginBottom: "8px", textAlign: "center" }}>Edit Student Profile</h3>
             <p style={{ color: "var(--text-secondary)", fontSize: "0.85rem", marginBottom: "20px", textAlign: "center" }}>
               Update your child's academic details. Personalization data will adapt to the new settings.

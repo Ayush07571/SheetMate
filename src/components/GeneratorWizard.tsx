@@ -213,6 +213,14 @@ export default function GeneratorWizard({
     }
   };
 
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    e.currentTarget.style.setProperty("--mouse-x", `${x}px`);
+    e.currentTarget.style.setProperty("--mouse-y", `${y}px`);
+  };
+
   const topics = getTopics();
   const allSelected = topics.length > 0 && selectedTopicIds.length === topics.length;
 
@@ -316,10 +324,15 @@ export default function GeneratorWizard({
             key={s}
             style={{
               flex: 1,
-              height: "4px",
-              background: s <= step ? "var(--accent-purple)" : "var(--bg-tertiary)",
+              height: "5px",
+              background: s === step
+                ? "linear-gradient(90deg, var(--accent-purple), var(--accent-cyan))"
+                : s < step
+                  ? "var(--accent-purple)"
+                  : "rgba(255, 255, 255, 0.05)",
+              boxShadow: s === step ? "0 0 10px var(--accent-purple-glow)" : "none",
               margin: "0 4px",
-              borderRadius: "2px",
+              borderRadius: "4px",
               transition: "var(--transition-smooth)"
             }}
           />
@@ -333,11 +346,7 @@ export default function GeneratorWizard({
           <div>
             <div style={{ marginBottom: "4px", display: "flex", alignItems: "center", gap: "10px" }}>
               <h3 style={{ fontSize: "1.2rem" }}>Step 1: Select Grade</h3>
-              <span style={{
-                fontSize: "0.7rem", fontWeight: 700, color: "#a78bfa",
-                background: "rgba(124,58,237,0.12)", padding: "3px 10px",
-                borderRadius: "20px", border: "1px solid rgba(124,58,237,0.2)"
-              }}>Standard Syllabus</span>
+              <span className="glowing-badge">Standard Syllabus</span>
             </div>
             <p style={{ color: "var(--text-muted)", fontSize: "0.8rem", marginBottom: "18px" }}>
               Syllabus is set to standard board curriculum for MVP.
@@ -346,7 +355,8 @@ export default function GeneratorWizard({
               {GRADES.map(g => (
                 <div
                   key={g}
-                  className={`selection-card ${grade === g ? "active" : ""}`}
+                  className={`selection-card spotlight-card ${grade === g ? "active" : ""}`}
+                  onMouseMove={handleMouseMove}
                   onClick={() => handleGradeChange(g)}
                 >
                   <p style={{ fontWeight: 600, fontSize: "0.95rem" }}>{g}</p>
@@ -401,7 +411,8 @@ export default function GeneratorWizard({
                   return (
                     <div
                       key={sub.id}
-                      className={`selection-card ${subject === sub.id ? "active" : ""}`}
+                      className={`selection-card spotlight-card ${subject === sub.id ? "active" : ""}`}
+                      onMouseMove={handleMouseMove}
                       onClick={() => handleSubjectChange(sub.id)}
                     >
                       <p style={{ fontWeight: 600, fontSize: "0.82rem" }}>{sub.name}</p>

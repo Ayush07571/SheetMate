@@ -106,10 +106,20 @@ export default function HomePage() {
     router.push(`/worksheets/${worksheetId}`);
   };
 
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    e.currentTarget.style.setProperty("--mouse-x", `${x}px`);
+    e.currentTarget.style.setProperty("--mouse-y", `${y}px`);
+  };
+
   return (
     <main style={{ minHeight: "100vh", position: "relative" }} className="responsive-container">
       {/* 3D WebGL Floating Background */}
       <ThreeBackground />
+      {/* Premium Fading Grid Overlay */}
+      <div className="grid-bg-overlay" />
 
       <style>{`
         @keyframes slideDown {
@@ -489,21 +499,21 @@ export default function HomePage() {
 
         {/* Hero Right Column: Graphic badge cards */}
         <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-          <div className="glass-card" style={{ padding: "24px", display: "flex", gap: "18px", alignItems: "flex-start" }}>
+          <div className="glass-card spotlight-card" onMouseMove={handleMouseMove} style={{ padding: "24px", display: "flex", gap: "18px", alignItems: "flex-start" }}>
             <div style={{ fontSize: "1.5rem", background: "rgba(124, 58, 237, 0.1)", padding: "10px", borderRadius: "8px", border: "1px solid rgba(124, 58, 237, 0.2)" }}>🎒</div>
             <div>
               <h4 style={{ fontSize: "1rem", color: "var(--text-primary)", fontWeight: 700 }}>LKG to Class 8 Syllabus</h4>
               <p style={{ fontSize: "0.85rem", color: "var(--text-secondary)", marginTop: "4px" }}>Aligned with latest NCERT patterns and textbooks.</p>
             </div>
           </div>
-          <div className="glass-card" style={{ padding: "24px", display: "flex", gap: "18px", alignItems: "flex-start" }}>
+          <div className="glass-card spotlight-card" onMouseMove={handleMouseMove} style={{ padding: "24px", display: "flex", gap: "18px", alignItems: "flex-start" }}>
             <div style={{ fontSize: "1.5rem", background: "rgba(6, 182, 212, 0.1)", padding: "10px", borderRadius: "8px", border: "1px solid rgba(6, 182, 212, 0.2)" }}>🎯</div>
             <div>
               <h4 style={{ fontSize: "1rem", color: "var(--text-primary)", fontWeight: 700 }}>Adaptive Learning Paths</h4>
               <p style={{ fontSize: "0.85rem", color: "var(--text-secondary)", marginTop: "4px" }}>60% of questions auto-target previously missed concepts.</p>
             </div>
           </div>
-          <div className="glass-card" style={{ padding: "24px", display: "flex", gap: "18px", alignItems: "flex-start" }}>
+          <div className="glass-card spotlight-card" onMouseMove={handleMouseMove} style={{ padding: "24px", display: "flex", gap: "18px", alignItems: "flex-start" }}>
             <div style={{ fontSize: "1.5rem", background: "rgba(16, 185, 129, 0.1)", padding: "10px", borderRadius: "8px", border: "1px solid rgba(16, 185, 129, 0.2)" }}>📊</div>
             <div>
               <h4 style={{ fontSize: "1rem", color: "var(--text-primary)", fontWeight: 700 }}>Interactive Parent Dashboard</h4>
@@ -630,7 +640,7 @@ export default function HomePage() {
           }}
         >
           {/* Feature 1 */}
-          <div className="glass-card" style={{ padding: "30px", border: "1px solid rgba(255, 255, 255, 0.03)" }}>
+          <div className="glass-card spotlight-card" onMouseMove={handleMouseMove} style={{ padding: "30px", border: "1px solid rgba(255, 255, 255, 0.03)" }}>
             <div style={{ width: "40px", height: "40px", background: "rgba(124, 58, 237, 0.1)", borderRadius: "8px", display: "flex", justifyContent: "center", alignItems: "center", marginBottom: "20px", border: "1px solid rgba(124, 58, 237, 0.3)" }}>
               <span style={{ color: "#a78bfa", fontWeight: "bold" }}>01</span>
             </div>
@@ -641,7 +651,7 @@ export default function HomePage() {
           </div>
 
           {/* Feature 2 */}
-          <div className="glass-card" style={{ padding: "30px", border: "1px solid rgba(255, 255, 255, 0.03)" }}>
+          <div className="glass-card spotlight-card" onMouseMove={handleMouseMove} style={{ padding: "30px", border: "1px solid rgba(255, 255, 255, 0.03)" }}>
             <div style={{ width: "40px", height: "40px", background: "rgba(6, 182, 212, 0.1)", borderRadius: "8px", display: "flex", justifyContent: "center", alignItems: "center", marginBottom: "20px", border: "1px solid rgba(6, 182, 212, 0.3)" }}>
               <span style={{ color: "#22d3ee", fontWeight: "bold" }}>02</span>
             </div>
@@ -652,7 +662,7 @@ export default function HomePage() {
           </div>
 
           {/* Feature 3 */}
-          <div className="glass-card" style={{ padding: "30px", border: "1px solid rgba(124, 58, 237, 0.03)" }}>
+          <div className="glass-card spotlight-card" onMouseMove={handleMouseMove} style={{ padding: "30px", border: "1px solid rgba(124, 58, 237, 0.03)" }}>
             <div style={{ width: "40px", height: "40px", background: "rgba(16, 185, 129, 0.1)", borderRadius: "8px", display: "flex", justifyContent: "center", alignItems: "center", marginBottom: "20px", border: "1px solid rgba(16, 185, 129, 0.3)" }}>
               <span style={{ color: "#34d399", fontWeight: "bold" }}>03</span>
             </div>

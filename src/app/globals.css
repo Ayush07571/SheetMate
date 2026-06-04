@@ -562,3 +562,202 @@ h1, h2, h3, h4, h5, h6 {
 .pwd-checklist-item.failed {
   color: #fca5a5;
 }
+
+/* 21st.dev Premium Aesthetics */
+
+/* Fading Grid Background Overlay */
+.grid-bg-overlay {
+  position: fixed;
+  inset: 0;
+  background-image: 
+    linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+  background-size: 40px 40px;
+  mask-image: radial-gradient(circle at 50% 50%, black 20%, transparent 75%);
+  -webkit-mask-image: radial-gradient(circle at 50% 50%, black 20%, transparent 75%);
+  pointer-events: none;
+  z-index: -1;
+  opacity: 0.85;
+}
+
+/* Spotlight Hover Card */
+.spotlight-card {
+  position: relative;
+  background: rgba(18, 18, 30, 0.6) !important;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.06) !important;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.25);
+  transition: border-color 0.4s ease, box-shadow 0.4s ease;
+}
+
+.spotlight-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    300px circle at var(--mouse-x, 50%) var(--mouse-y, 50%),
+    rgba(124, 58, 237, 0.15),
+    transparent 80%
+  );
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.5s ease;
+}
+
+.spotlight-card:hover::before {
+  opacity: 1;
+}
+
+.spotlight-card:hover {
+  border-color: rgba(124, 58, 237, 0.35) !important;
+  box-shadow: 0 12px 40px -10px rgba(124, 58, 237, 0.2), 0 0 15px rgba(124, 58, 237, 0.05);
+}
+
+/* Children elements inside spotlight card need pointer-events so text is highlightable */
+.spotlight-card > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Sliding Pill Tab Selectors */
+.slider-tabs-container {
+  display: flex;
+  background: rgba(10, 10, 15, 0.6);
+  border: 1px solid var(--border-glow);
+  border-radius: 30px;
+  padding: 4px;
+  position: relative;
+  gap: 2px;
+  width: 100%;
+  margin-bottom: 24px;
+  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.slider-tab-btn {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font-heading);
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 10px 14px;
+  cursor: pointer;
+  position: relative;
+  z-index: 2;
+  border-radius: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: color 0.3s ease;
+}
+
+.slider-tab-btn:hover {
+  color: var(--text-primary);
+}
+
+.slider-tab-btn.active {
+  color: #ffffff !important;
+}
+
+.slider-tab-indicator {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 4px;
+  width: calc(50% - 6px);
+  background: linear-gradient(135deg, var(--accent-purple) 0%, #6d28d9 100%);
+  border-radius: 26px;
+  z-index: 1;
+  box-shadow: 0 4px 14px var(--accent-purple-glow);
+  transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1), background 0.3s ease, box-shadow 0.3s ease;
+}
+
+.slider-tab-indicator.cyan-gradient {
+  background: linear-gradient(135deg, var(--accent-cyan) 0%, #0891b2 100%);
+  box-shadow: 0 4px 14px var(--accent-cyan-glow);
+}
+
+.slider-tab-indicator.right {
+  transform: translateX(100%);
+}
+
+/* Premium Inputs */
+.premium-input {
+  width: 100%;
+  background: rgba(10, 10, 15, 0.6) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  color: var(--text-primary) !important;
+  padding: 14px 16px !important;
+  border-radius: var(--radius-sm) !important;
+  font-family: var(--font-body);
+  font-size: 0.95rem !important;
+  outline: none;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+  transition: border-color 0.3s ease, box-shadow 0.3s ease, transform 0.2s ease;
+}
+
+.premium-input:focus {
+  border-color: var(--accent-purple) !important;
+  box-shadow: 0 0 0 3px var(--accent-purple-glow), inset 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+}
+
+.premium-input.cyan-focus:focus {
+  border-color: var(--accent-cyan) !important;
+  box-shadow: 0 0 0 3px var(--accent-cyan-glow), inset 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Glowing Neon Badges */
+.glowing-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(124, 58, 237, 0.08);
+  border: 1px solid rgba(124, 58, 237, 0.25);
+  padding: 5px 12px;
+  border-radius: 9999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #c084fc;
+  box-shadow: 0 0 15px -3px rgba(124, 58, 237, 0.1);
+  transition: var(--transition-smooth);
+}
+
+.glowing-badge.cyan {
+  background: rgba(6, 182, 212, 0.08);
+  border-color: rgba(6, 182, 212, 0.25);
+  color: #22d3ee;
+  box-shadow: 0 0 15px -3px rgba(6, 182, 212, 0.1);
+}
+
+.glowing-badge.emerald {
+  background: rgba(16, 185, 129, 0.08);
+  border-color: rgba(16, 185, 129, 0.25);
+  color: #34d399;
+  box-shadow: 0 0 15px -3px rgba(16, 185, 129, 0.1);
+}
+
+/* Custom Scrollbar for modern dashboards */
+.responsive-modal-body::-webkit-scrollbar,
+div::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.responsive-modal-body::-webkit-scrollbar-thumb,
+div::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+}
+
+.responsive-modal-body::-webkit-scrollbar-thumb:hover,
+div::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-purple);
+}
