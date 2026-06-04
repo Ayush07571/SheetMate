@@ -2296,7 +2296,16 @@ export default function DashboardPage() {
                             >
                               View
                             </button>
-                            {parentUnlocked && (
+                            {!parentUnlocked ? (
+                              <button
+                                type="button"
+                                className="btn-secondary"
+                                style={{ padding: "4px 10px", fontSize: "0.75rem", borderColor: "var(--accent-purple)", color: "#a78bfa" }}
+                                onClick={() => openGrader(ws.id, true)}
+                              >
+                                Retake
+                              </button>
+                            ) : (
                               <button
                                 type="button"
                                 className="btn-secondary"
@@ -2347,7 +2356,16 @@ export default function DashboardPage() {
                           >
                             View
                           </button>
-                          {parentUnlocked && (
+                          {!parentUnlocked ? (
+                            <button
+                              type="button"
+                              className="btn-secondary"
+                              style={{ padding: "6px 12px", fontSize: "0.75rem", borderColor: "var(--accent-purple)", color: "#a78bfa" }}
+                              onClick={() => openGrader(ws.id, true)}
+                            >
+                              Submit Score
+                            </button>
+                          ) : (
                             <button
                               type="button"
                               className="btn-secondary"
@@ -2526,7 +2544,9 @@ export default function DashboardPage() {
           <div className="glass-card" style={{ padding: "30px", width: "100%", maxWidth: "800px", margin: "20px", maxHeight: "90vh", display: "flex", flexDirection: "column" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", borderBottom: "1px solid rgba(255,255,255,0.08)", paddingBottom: "16px" }}>
               <div>
-                <span style={{ fontSize: "0.75rem", color: "var(--accent-purple)", textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 700 }}>Parent Grading Panel</span>
+                <span style={{ fontSize: "0.75rem", color: "var(--accent-purple)", textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 700 }}>
+                  {parentUnlocked ? "Parent Grading Panel" : "Worksheet Grading Panel"}
+                </span>
                 <h3 style={{ fontSize: "1.3rem", marginTop: "2px" }}>
                   {gradingWorksheetData ? gradingWorksheetData.topic : "Grading Worksheet"}
                 </h3>
